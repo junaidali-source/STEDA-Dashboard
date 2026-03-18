@@ -1,6 +1,6 @@
 import fs   from 'fs'
 import path from 'path'
-import { pool } from './db'
+import { supabase } from './supabase'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 export type Sentiment = 'positive' | 'question' | 'issue' | 'other'
@@ -82,16 +82,15 @@ function parseDate(raw: string): string {
 // ── DB: load live messages from Supabase whatsapp_messages table ──────────────
 async function loadDbMessages(): Promise<{ messages: WaMessage[]; liveConnected: boolean }> {
   try {
-    const res = await pool.query<{
-      timestamp: string; date: string; sender: string; text: string; sentiment: string
-    }>(
-      `SELECT timestamp, date::text, sender, text, sentiment
-       FROM whatsapp_messages
-       ORDER BY timestamp ASC
-       LIMIT 2000`
-    )
+    const { data, error } = await supabase
+      .from('whatsapp_messages')
+      .select('timestamp, date, sender, text, sentiment, created_at')
+      .order('timestamp', { ascending: true })
+      .limit(2000)
 
-    const messages: WaMessage[] = res.rows.map(r => ({
+    if (error) throw error
+
+    const messages: WaMessage[] = (data ?? []).map(r => ({
       timestamp: r.timestamp,
       date:      r.date,
       sender:    r.sender,
@@ -101,10 +100,13 @@ async function loadDbMessages(): Promise<{ messages: WaMessage[]; liveConnected:
     }))
 
     // Live = any message inserted in the last 5 minutes
-    const recent = await pool.query(
-      `SELECT 1 FROM whatsapp_messages WHERE created_at > now() - interval '5 minutes' LIMIT 1`
-    )
-    return { messages, liveConnected: recent.rows.length > 0 }
+    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+    const { count } = await supabase
+      .from('whatsapp_messages')
+      .select('*', { count: 'exact', head: true })
+      .gt('created_at', fiveMinAgo)
+
+    return { messages, liveConnected: (count ?? 0) > 0 }
   } catch {
     return { messages: [], liveConnected: false }
   }

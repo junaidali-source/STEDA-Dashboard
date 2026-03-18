@@ -12,7 +12,7 @@
 require('dotenv').config({ path: '../.env' })
 const { Client, LocalAuth } = require('whatsapp-web.js')
 const qrcode  = require('qrcode-terminal')
-const { Pool } = require('pg')
+const { createClient } = require('@supabase/supabase-js')
 const fs      = require('fs')
 const path    = require('path')
 
@@ -32,42 +32,34 @@ const ADMINS = new Set([
   'Afzal ahmed', 'GUL HASSAN', 'Ayaz Iqbal Jokhio',
 ])
 
-// ── Supabase DB pool ─────────────────────────────────────────────────────────
-const db = new Pool({
-  host:     process.env.DB_HOST,
-  port:     Number(process.env.DB_PORT || 5432),
-  database: process.env.DB_NAME,
-  user:     process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  ssl:      { rejectUnauthorized: false },
-  max: 3,
-  idleTimeoutMillis: 30000,
-})
+// ── Supabase client ───────────────────────────────────────────────────────────
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+)
 
 async function ensureTable() {
-  await db.query(`
-    CREATE TABLE IF NOT EXISTS whatsapp_messages (
-      id          text PRIMARY KEY,
-      timestamp   timestamptz NOT NULL,
-      date        date NOT NULL,
-      sender      text NOT NULL,
-      text        text NOT NULL,
-      sentiment   text NOT NULL,
-      grp         text,
-      source      text DEFAULT 'live',
-      created_at  timestamptz DEFAULT now()
-    )
-  `)
+  // Table must be created in Supabase Dashboard SQL Editor — anon key cannot run DDL.
+  // Just verify the connection by running a lightweight query.
+  const { error } = await supabase.from('whatsapp_messages').select('id').limit(1)
+  if (error) throw new Error(error.message)
   console.log('[db] whatsapp_messages table ready')
 }
 
 async function insertMessage(entry) {
-  await db.query(
-    `INSERT INTO whatsapp_messages (id, timestamp, date, sender, text, sentiment, grp, source)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-     ON CONFLICT (id) DO NOTHING`,
-    [entry.id, entry.timestamp, entry.date, entry.sender, entry.text, entry.sentiment, entry.group, 'live']
-  )
+  const { error } = await supabase
+    .from('whatsapp_messages')
+    .upsert({
+      id:        entry.id,
+      timestamp: entry.timestamp,
+      date:      entry.date,
+      sender:    entry.sender,
+      text:      entry.text,
+      sentiment: entry.sentiment,
+      grp:       entry.group,
+      source:    'live',
+    }, { onConflict: 'id', ignoreDuplicates: true })
+  if (error) throw new Error(error.message)
 }
 
 // ── Sentiment keywords ────────────────────────────────────────────────────────
@@ -214,7 +206,7 @@ client.on('message', async (msg) => {
 // ── Start ─────────────────────────────────────────────────────────────────────
 console.log('Starting WhatsApp service for STEDA dashboard…')
 console.log(`Target groups: ${TARGET_GROUPS.map(g => `"${g}"`).join(', ')}`)
-console.log(`DB: ${process.env.DB_HOST}`)
+console.log(`Supabase: ${process.env.SUPABASE_URL}`)
 console.log()
 
 writeStatus('starting')
