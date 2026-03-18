@@ -5,6 +5,13 @@ const nextConfig = {
     // Pre-existing in CohortPanel.tsx; suppressed here to unblock build
     ignoreBuildErrors: true,
   },
+  experimental: {
+    // Ensure the CSV is bundled into Vercel serverless functions
+    outputFileTracingIncludes: {
+      '/api/steda/**': ['./data/**'],
+      '/steda': ['./data/**'],
+    },
+  },
 };
 
 export default nextConfig;

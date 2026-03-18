@@ -36,9 +36,9 @@ export interface SentimentResult {
 }
 
 // ── File paths (local dev only) ───────────────────────────────────────────────
-const CHAT_PATH   = path.join(process.cwd(), '..', 'WhatsApp Chat with General  Discussions.txt')
-const LIVE_PATH   = path.join(process.cwd(), '..', 'wa-messages.json')
-const STATUS_PATH = path.join(process.cwd(), '..', 'wa-status.json')
+const CHAT_PATH   = path.join(process.cwd(), 'data', 'WhatsApp Chat with General  Discussions.txt')
+const LIVE_PATH   = path.join(process.cwd(), '..', 'wa-messages.json')   // local dev only
+const STATUS_PATH = path.join(process.cwd(), '..', 'wa-status.json')     // local dev only
 
 const NARROW_NBSP = '\u202F'
 const MSG_PAT = new RegExp(

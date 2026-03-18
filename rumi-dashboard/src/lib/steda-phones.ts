@@ -55,8 +55,7 @@ let _cache: SteadaData | null = null
 export function getSteadaData(): SteadaData {
   if (_cache) return _cache
 
-  // CSV is one level up from rumi-dashboard/
-  const csvPath = path.join(process.cwd(), '..', 'STEDA List of Teachers-1 .csv')
+  const csvPath = path.join(process.cwd(), 'data', 'STEDA List of Teachers-1 .csv')
   const raw = fs.readFileSync(csvPath, 'utf-8')
   // Strip BOM if present
   const content = raw.replace(/^\uFEFF/, '')
