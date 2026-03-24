@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { pool } from '@/lib/db'
 import { getSteadaData } from '@/lib/steda-phones'
 
+const SCORE_FILTER = `cs.status='completed' AND cs.analysis_data IS NOT NULL`
+
 const SELECT_COLS = `
   u.id,
   COALESCE(u.first_name, 'Unknown')       AS name,
@@ -12,7 +14,19 @@ const SELECT_COLS = `
   COUNT(cs.id)::int                       AS total_sessions,
   COUNT(cs.id) FILTER(WHERE cs.status='completed')::int AS completed_sessions,
   MIN(cs.created_at)::date                AS first_session,
-  MAX(cs.created_at)::date                AS last_session`
+  MAX(cs.created_at)::date                AS last_session,
+  ROUND(AVG((cs.analysis_data->'scores'->>'percentage')::numeric)
+    FILTER(WHERE ${SCORE_FILTER}), 1)     AS avg_score,
+  ROUND(AVG((cs.analysis_data->'scores'->>'goal1_total')::numeric)
+    FILTER(WHERE ${SCORE_FILTER}), 1)     AS avg_g1,
+  ROUND(AVG((cs.analysis_data->'scores'->>'goal2_total')::numeric)
+    FILTER(WHERE ${SCORE_FILTER}), 1)     AS avg_g2,
+  ROUND(AVG((cs.analysis_data->'scores'->>'goal3_total')::numeric)
+    FILTER(WHERE ${SCORE_FILTER}), 1)     AS avg_g3,
+  ROUND(AVG((cs.analysis_data->'scores'->>'goal4_total')::numeric)
+    FILTER(WHERE ${SCORE_FILTER}), 1)     AS avg_g4,
+  ROUND(AVG((cs.analysis_data->'scores'->>'goal5_total')::numeric)
+    FILTER(WHERE ${SCORE_FILTER}), 1)     AS avg_g5`
 
 const GROUP_BY = `
   GROUP BY u.id, u.first_name, u.phone_number, u.school_name, u.preferred_language, u.created_at`

@@ -5,6 +5,7 @@ import { getSteadaData } from '@/lib/steda-phones'
 const empty = () => ({
   usersWithSessions: 0, totalSessions: 0, completedSessions: 0,
   completionRate: 0, activeThisMonth: 0, sessionsThisMonth: 0,
+  avgScore: null, topScore: null, lowScore: null,
 })
 
 export async function GET(req: NextRequest) {
@@ -15,12 +16,16 @@ export async function GET(req: NextRequest) {
     const partner = sp.get('partner') || null
     const scope   = sp.get('scope')   || null
 
+    const SF = `cs.status='completed' AND cs.analysis_data IS NOT NULL`
     const COLS = `
       COUNT(DISTINCT cs.user_id)::int AS users_with_sessions,
       COUNT(*)::int AS total_sessions,
       COUNT(*) FILTER(WHERE cs.status='completed')::int AS completed_sessions,
       COUNT(DISTINCT cs.user_id) FILTER(WHERE cs.created_at >= date_trunc('month', now()))::int AS active_this_month,
-      COUNT(*) FILTER(WHERE cs.created_at >= date_trunc('month', now()))::int AS sessions_this_month`
+      COUNT(*) FILTER(WHERE cs.created_at >= date_trunc('month', now()))::int AS sessions_this_month,
+      ROUND(AVG((cs.analysis_data->'scores'->>'percentage')::numeric) FILTER(WHERE ${SF}), 1) AS avg_score,
+      ROUND(MAX((cs.analysis_data->'scores'->>'percentage')::numeric) FILTER(WHERE ${SF}), 1) AS top_score,
+      ROUND(MIN((cs.analysis_data->'scores'->>'percentage')::numeric) FILTER(WHERE ${SF}), 1) AS low_score`
 
     let rows: Record<string, number>[]
 
@@ -74,6 +79,9 @@ export async function GET(req: NextRequest) {
         ? Math.round((r.completed_sessions / r.total_sessions) * 100) : 0,
       activeThisMonth:   r.active_this_month    ?? 0,
       sessionsThisMonth: r.sessions_this_month  ?? 0,
+      avgScore:          r.avg_score  ?? null,
+      topScore:          r.top_score  ?? null,
+      lowScore:          r.low_score  ?? null,
     })
   } catch (e: unknown) {
     return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 })

@@ -12,6 +12,9 @@ interface Summary {
   completionRate:    number
   activeThisMonth:   number
   sessionsThisMonth: number
+  avgScore:  number | null
+  topScore:  number | null
+  lowScore:  number | null
 }
 
 interface CoachUser {
@@ -25,6 +28,12 @@ interface CoachUser {
   completed_sessions:  number
   first_session:       string | null
   last_session:        string | null
+  avg_score:           number | null
+  avg_g1:              number | null
+  avg_g2:              number | null
+  avg_g3:              number | null
+  avg_g4:              number | null
+  avg_g5:              number | null
   // STEDA extras
   district?:    string
   designation?: string
@@ -188,7 +197,7 @@ export default function CoachingDashboard({ role }: { role: string }) {
         </div>
         {/* Partner selector — admin only */}
         {!isSteda && partners.length > 0 && (
-          <select value={partner} onChange={e => applyPartner(e.target.value)}
+          <select value={partner} onChange={e => applyPartner(e.target.value)} title="Filter by partner"
             className="ml-auto bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-xs text-gray-200 outline-none focus:border-teal-500">
             <option value="">All Partners</option>
             {partners.map(p => (
@@ -200,7 +209,7 @@ export default function CoachingDashboard({ role }: { role: string }) {
 
       {loading && !loadedRef.current ? <Spinner /> : summary && (
         <>
-          {/* KPI Cards */}
+          {/* KPI Cards — activity */}
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
             <KPICard label="Users with Sessions"  value={summary.usersWithSessions} />
             <KPICard label="Total Sessions"        value={summary.totalSessions} />
@@ -210,6 +219,18 @@ export default function CoachingDashboard({ role }: { role: string }) {
             <KPICard label="Active This Month"     value={summary.activeThisMonth} sub="unique users" />
             <KPICard label="Sessions This Month"   value={summary.sessionsThisMonth} />
           </div>
+
+          {/* KPI Cards — scores */}
+          {summary.avgScore !== null && (
+            <div className="grid grid-cols-3 gap-4">
+              <KPICard label="Avg Coaching Score" value={`${summary.avgScore}%`}
+                sub="across all completed sessions"
+                accent={summary.avgScore >= 80 ? 'text-green-400' : summary.avgScore >= 60 ? 'text-yellow-400' : 'text-red-400'} />
+              <KPICard label="Top Score"  value={`${summary.topScore}%`} accent="text-green-400" sub="highest session score" />
+              <KPICard label="Lowest Score" value={`${summary.lowScore}%`}
+                accent={(summary.lowScore ?? 0) >= 60 ? 'text-yellow-400' : 'text-red-400'} sub="lowest session score" />
+            </div>
+          )}
 
           {/* User table */}
           <div className="bg-gray-900 rounded-xl border border-gray-800">
@@ -246,8 +267,14 @@ export default function CoachingDashboard({ role }: { role: string }) {
                       <th className="text-left px-4 py-3 font-medium">Language</th>
                     )}
                     <th className="text-right px-4 py-3 font-medium">Sessions</th>
-                    <th className="text-right px-4 py-3 font-medium">Completed</th>
+                    <th className="text-right px-4 py-3 font-medium">Done</th>
                     <th className="text-right px-4 py-3 font-medium">Rate</th>
+                    <th className="text-right px-4 py-3 font-medium bg-indigo-900/20 border-l border-gray-700">Avg Score</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-500" title="Formative Assessment">G1</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-500" title="Student Engagement">G2</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-500" title="Quality Content">G3</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-500" title="Classroom Interaction">G4</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-500" title="Classroom Management">G5</th>
                     <th className="text-left px-4 py-3 font-medium">First Session</th>
                     <th className="text-left px-4 py-3 font-medium">Last Session</th>
                     <th className="text-left px-4 py-3 font-medium">Joined</th>
@@ -256,7 +283,7 @@ export default function CoachingDashboard({ role }: { role: string }) {
                 <tbody>
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={isSteda ? 13 : 11}
+                      <td colSpan={isSteda ? 16 : 14}
                         className="text-center py-16 text-gray-500">
                         {loading ? 'Loading…' : 'No coaching sessions found for this filter.'}
                       </td>
@@ -283,6 +310,16 @@ export default function CoachingDashboard({ role }: { role: string }) {
                         <td className="px-4 py-3 text-right text-gray-200 font-medium">{u.total_sessions}</td>
                         <td className="px-4 py-3 text-right text-green-400 font-medium">{u.completed_sessions}</td>
                         <td className="px-4 py-3 text-right"><RateBadge rate={rate} /></td>
+                        <td className="px-4 py-3 text-right border-l border-gray-700 bg-indigo-900/10">
+                          {u.avg_score !== null
+                            ? <RateBadge rate={u.avg_score} />
+                            : <span className="text-gray-600">—</span>}
+                        </td>
+                        <td className="px-4 py-3 text-right text-gray-400">{u.avg_g1 ?? '—'}</td>
+                        <td className="px-4 py-3 text-right text-gray-400">{u.avg_g2 ?? '—'}</td>
+                        <td className="px-4 py-3 text-right text-gray-400">{u.avg_g3 ?? '—'}</td>
+                        <td className="px-4 py-3 text-right text-gray-400">{u.avg_g4 ?? '—'}</td>
+                        <td className="px-4 py-3 text-right text-gray-400">{u.avg_g5 ?? '—'}</td>
                         <td className="px-4 py-3 text-gray-400 whitespace-nowrap">{u.first_session ?? '—'}</td>
                         <td className="px-4 py-3 text-gray-400 whitespace-nowrap">{u.last_session ?? '—'}</td>
                         <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{u.joined}</td>
@@ -294,10 +331,10 @@ export default function CoachingDashboard({ role }: { role: string }) {
             </div>
 
             {filtered.length > 0 && (
-              <div className="px-4 py-3 border-t border-gray-800 text-xs text-gray-500 flex justify-between">
-                <span>{filtered.length} users shown</span>
-                <span>
-                  {filtered.reduce((s, u) => s + u.completed_sessions, 0)} completed sessions total
+              <div className="px-4 py-3 border-t border-gray-800 text-xs text-gray-500 flex flex-wrap justify-between gap-2">
+                <span>{filtered.length} users shown · {filtered.reduce((s, u) => s + u.completed_sessions, 0)} completed sessions total</span>
+                <span className="text-gray-600">
+                  G1 Formative Assessment · G2 Student Engagement · G3 Quality Content · G4 Classroom Interaction · G5 Classroom Management
                 </span>
               </div>
             )}
