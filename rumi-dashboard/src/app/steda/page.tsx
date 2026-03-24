@@ -21,7 +21,7 @@ export default function StedaPage() {
             <span className="text-xs text-amber-400 bg-gray-800 px-3 py-1 rounded-full font-medium">
               Live Data
             </span>
-            <p className="text-xs text-gray-500 mt-2">Updated: March 16, 2026</p>
+            <p className="text-xs text-gray-500 mt-2">Updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
           </div>
         </div>
       </div>

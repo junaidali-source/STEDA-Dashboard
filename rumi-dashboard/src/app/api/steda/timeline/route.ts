@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { pool } from '@/lib/db'
 import { getSteadaData } from '@/lib/steda-phones'
 
@@ -13,30 +13,27 @@ function batchLabel(dateStr: string): string {
   return 'Mar 13–16'
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const { phones } = getSteadaData()
+    const sp   = new URL(req.url).searchParams
+    const from = sp.get('from') || null
+    const to   = sp.get('to')   || null
 
+    const { phones } = getSteadaData()
     const res = await pool.query(
-      `SELECT DATE_TRUNC('day', created_at)::date::text AS day,
-              COUNT(*)::int AS count
+      `SELECT DATE_TRUNC('day', created_at)::date::text AS day, COUNT(*)::int AS count
        FROM users
        WHERE phone_number = ANY($1::text[])
          AND COALESCE(is_test_user, false) = false
-       GROUP BY 1
-       ORDER BY 1`,
-      [phones]
+         AND ($2::date IS NULL OR created_at::date >= $2::date)
+         AND ($3::date IS NULL OR created_at::date <= $3::date)
+       GROUP BY 1 ORDER BY 1`,
+      [phones, from, to]
     )
-
-    const rows = res.rows.map((r: { day: string; count: number }) => ({
-      day:   r.day,
-      count: r.count,
-      batch: batchLabel(r.day),
-    }))
-
-    return NextResponse.json(rows)
+    return NextResponse.json(res.rows.map((r: { day: string; count: number }) => ({
+      day: r.day, count: r.count, batch: batchLabel(r.day),
+    })))
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e)
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 })
   }
 }

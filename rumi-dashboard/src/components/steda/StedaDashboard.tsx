@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import KPIBanner             from './KPIBanner'
 import FunnelChart           from './FunnelChart'
 import DistrictChart         from './DistrictChart'
@@ -21,7 +21,6 @@ function Spinner({ slow }: { slow?: boolean }) {
     </div>
   )
 }
-
 function Panel({ children, loading, slow }: { children: React.ReactNode; loading: boolean; slow?: boolean }) {
   return loading
     ? <div className="bg-gray-900 rounded-xl border border-gray-800 p-5"><Spinner slow={slow} /></div>
@@ -34,7 +33,22 @@ interface Overview {
   lp: FeatureStat; coaching: FeatureStat; reading: FeatureStat; video: FeatureStat; image: FeatureStat
 }
 
+const PRESETS = [
+  { label: 'All Time',    from: '',                                         to: '' },
+  { label: 'Last 7d',     from: daysAgo(7),                                 to: today() },
+  { label: 'Last 30d',    from: daysAgo(30),                                to: today() },
+  { label: 'This Month',  from: firstOfMonth(),                             to: today() },
+]
+
+function today() { return new Date().toISOString().slice(0, 10) }
+function daysAgo(n: number) { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10) }
+function firstOfMonth() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01` }
+
 export default function StedaDashboard() {
+  const [from, setFrom] = useState('')
+  const [to,   setTo]   = useState('')
+  const [preset, setPreset] = useState('All Time')
+
   const [overview,     setOverview]     = useState<Overview | null>(null)
   const [districts,    setDistricts]    = useState<unknown[] | null>(null)
   const [demographics, setDemographics] = useState<Record<string, unknown> | null>(null)
@@ -46,125 +60,150 @@ export default function StedaDashboard() {
   const [schools,      setSchools]      = useState<unknown[] | null>(null)
   const [error,        setError]        = useState<string | null>(null)
   const [slow,         setSlow]         = useState(false)
+  const [lastRefresh,  setLastRefresh]  = useState<Date | null>(null)
   const loadedRef = useRef(false)
 
-  useEffect(() => {
-    // After 3s still loading → show "Connecting to database…"
-    const slowTimer = setTimeout(() => {
-      if (!loadedRef.current) setSlow(true)
-    }, 3000)
-    // After 20s still loading → show error
-    const deadTimer = setTimeout(() => {
-      if (!loadedRef.current) setError('Request timed out — the database may be unreachable. Refresh to retry.')
-    }, 20000)
-
-    const go = async () => {
-      try {
-        const [ov, di, de, tl, se, ad, dp, tr, sc] = await Promise.all([
-          fetch('/api/steda/overview').then(r => r.json()),
-          fetch('/api/steda/districts').then(r => r.json()),
-          fetch('/api/steda/demographics').then(r => r.json()),
-          fetch('/api/steda/timeline').then(r => r.json()),
-          fetch('/api/steda/sentiment').then(r => r.json()),
-          fetch('/api/steda/feature-adoption').then(r => r.json()),
-          fetch('/api/steda/engagement-depth').then(r => r.json()),
-          fetch('/api/steda/feature-trends').then(r => r.json()),
-          fetch('/api/steda/top-schools').then(r => r.json()),
-        ])
-        if (ov.error) throw new Error(ov.error)
-        setOverview(ov)
-        setDistricts(Array.isArray(di) ? di : [])
-        setDemographics(de)
-        setTimeline(Array.isArray(tl) ? tl : [])
-        setSentiment(se)
-        setAdoption(Array.isArray(ad) ? ad : [])
-        setDepth(Array.isArray(dp) ? dp : [])
-        setTrends(Array.isArray(tr) ? tr : [])
-        setSchools(Array.isArray(sc) ? sc : [])
-        loadedRef.current = true
-        clearTimeout(slowTimer)
-        clearTimeout(deadTimer)
-      } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : 'Unknown error')
-      }
-    }
-    go()
-
-    // Poll sentiment every 30 seconds to pick up live WhatsApp messages
-    const pollSentiment = setInterval(async () => {
-      try {
-        const se = await fetch('/api/steda/sentiment').then(r => r.json())
-        if (!se.error) setSentiment(se)
-      } catch { /* ignore poll errors */ }
-    }, 30_000)
-
-    return () => {
-      clearTimeout(slowTimer)
-      clearTimeout(deadTimer)
-      clearInterval(pollSentiment)
+  const fetchAll = useCallback(async (f: string, t: string) => {
+    const qs = [f && `from=${f}`, t && `to=${t}`].filter(Boolean).join('&')
+    const q  = qs ? `?${qs}` : ''
+    try {
+      const [ov, di, de, tl, se, ad, dp, tr, sc] = await Promise.all([
+        fetch(`/api/steda/overview${q}`).then(r => r.json()),
+        fetch(`/api/steda/districts`).then(r => r.json()),
+        fetch(`/api/steda/demographics`).then(r => r.json()),
+        fetch(`/api/steda/timeline${q}`).then(r => r.json()),
+        fetch(`/api/steda/sentiment`).then(r => r.json()),
+        fetch(`/api/steda/feature-adoption${q}`).then(r => r.json()),
+        fetch(`/api/steda/engagement-depth${q}`).then(r => r.json()),
+        fetch(`/api/steda/feature-trends${q}`).then(r => r.json()),
+        fetch(`/api/steda/top-schools${q}`).then(r => r.json()),
+      ])
+      if (ov.error) throw new Error(ov.error)
+      setOverview(ov)
+      setDistricts(Array.isArray(di) ? di : [])
+      setDemographics(de)
+      setTimeline(Array.isArray(tl) ? tl : [])
+      setSentiment(se)
+      setAdoption(Array.isArray(ad) ? ad : [])
+      setDepth(Array.isArray(dp) ? dp : [])
+      setTrends(Array.isArray(tr) ? tr : [])
+      setSchools(Array.isArray(sc) ? sc : [])
+      setLastRefresh(new Date())
+      loadedRef.current = true
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Unknown error')
     }
   }, [])
 
-  if (error) {
-    return (
-      <div className="rounded-xl bg-red-950 border border-red-800 p-6 text-red-300 text-sm">
-        <strong>Error loading STEDA data:</strong> {error}
-      </div>
-    )
+  // Initial load + slow/dead timers
+  useEffect(() => {
+    const slowTimer = setTimeout(() => { if (!loadedRef.current) setSlow(true) }, 3000)
+    const deadTimer = setTimeout(() => { if (!loadedRef.current) setError('Request timed out. Refresh to retry.') }, 20000)
+    fetchAll(from, to).then(() => { clearTimeout(slowTimer); clearTimeout(deadTimer) })
+
+    // Auto-refresh every 5 minutes
+    const refresh = setInterval(() => fetchAll(from, to), 5 * 60 * 1000)
+    // Sentiment poll every 30s
+    const pollSentiment = setInterval(async () => {
+      try { const se = await fetch('/api/steda/sentiment').then(r => r.json()); if (!se.error) setSentiment(se) }
+      catch { /* ignore */ }
+    }, 30_000)
+
+    return () => { clearTimeout(slowTimer); clearTimeout(deadTimer); clearInterval(refresh); clearInterval(pollSentiment) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function applyPreset(p: typeof PRESETS[0]) {
+    setPreset(p.label)
+    setFrom(p.from)
+    setTo(p.to)
+    resetData()
+    fetchAll(p.from, p.to)
   }
 
+  function applyCustom() {
+    setPreset('Custom')
+    resetData()
+    fetchAll(from, to)
+  }
+
+  function resetData() {
+    setOverview(null); setDistricts(null); setDemographics(null); setTimeline(null)
+    setAdoption(null); setDepth(null); setTrends(null); setSchools(null)
+    loadedRef.current = false; setSlow(false)
+  }
+
+  if (error) return (
+    <div className="rounded-xl bg-red-950 border border-red-800 p-6 text-red-300 text-sm">
+      <strong>Error loading STEDA data:</strong> {error}
+    </div>
+  )
+
   const ov = overview
+  const refreshLabel = lastRefresh
+    ? `Refreshed ${Math.floor((Date.now() - lastRefresh.getTime()) / 60000)}m ago`
+    : 'Loading…'
 
   return (
     <div className="space-y-6">
-      {/* ── Row 1: KPI Banner ────────────────────────────────────── */}
+      {/* ── Date Filter Bar ─────────────────────────────────────────── */}
+      <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 flex flex-wrap items-center gap-3">
+        <span className="text-xs text-gray-400 font-medium shrink-0">Date range:</span>
+        <div className="flex gap-1 flex-wrap">
+          {PRESETS.map(p => (
+            <button type="button" key={p.label} onClick={() => applyPreset(p)}
+              className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                preset === p.label ? 'bg-teal-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              }`}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 ml-auto flex-wrap">
+          <input type="date" value={from} title="From date" placeholder="From"
+            onChange={e => { setFrom(e.target.value); setPreset('Custom') }}
+            className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200 outline-none focus:border-teal-500" />
+          <span className="text-gray-500 text-xs">to</span>
+          <input type="date" value={to} title="To date" placeholder="To"
+            onChange={e => { setTo(e.target.value); setPreset('Custom') }}
+            className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200 outline-none focus:border-teal-500" />
+          <button type="button" onClick={applyCustom}
+            className="px-3 py-1 bg-teal-700 hover:bg-teal-600 text-white text-xs rounded font-medium transition-colors">
+            Apply
+          </button>
+          <span className="text-xs text-gray-500 shrink-0">{refreshLabel}</span>
+        </div>
+      </div>
+
+      {/* ── Row 1: KPI Banner ────────────────────────────────────────── */}
       <Panel loading={!ov} slow={slow}>
-        {ov && (
-          <KPIBanner
-            totalListed={ov.totalListed}
-            totalJoined={ov.totalJoined}
-            anyFeatureUsers={ov.anyFeatureUsers}
-            lp={ov.lp}
-            coaching={ov.coaching}
-            reading={ov.reading}
-            video={ov.video}
-            image={ov.image}
-          />
-        )}
+        {ov && <KPIBanner totalListed={ov.totalListed} totalJoined={ov.totalJoined}
+          anyFeatureUsers={ov.anyFeatureUsers} lp={ov.lp} coaching={ov.coaching}
+          reading={ov.reading} video={ov.video} image={ov.image} />}
       </Panel>
 
-      {/* ── Row 2: Funnel + Feature Adoption ─────────────────────── */}
+      {/* ── Row 2: Funnel + Feature Adoption ─────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Panel loading={!ov} slow={slow}>
-          {ov && (
-            <FunnelChart
-              totalListed={ov.totalListed}
-              totalJoined={ov.totalJoined}
-              anyFeatureUsers={ov.anyFeatureUsers}
-            />
-          )}
+          {ov && <FunnelChart totalListed={ov.totalListed} totalJoined={ov.totalJoined} anyFeatureUsers={ov.anyFeatureUsers} />}
         </Panel>
         <Panel loading={!adoption} slow={slow}>
-          {adoption && ov && (
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            <FeatureAdoptionChart data={adoption as any} totalJoined={ov.totalJoined} />
-          )}
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+          {adoption && ov && <FeatureAdoptionChart data={adoption as any} totalJoined={ov.totalJoined} />}
         </Panel>
       </div>
 
-      {/* ── Row 3: Feature Trends ─────────────────────────────────── */}
+      {/* ── Row 3: Feature Trends ─────────────────────────────────────── */}
       <Panel loading={!trends} slow={slow}>
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         {trends && <FeatureTrendsChart data={trends as any} />}
       </Panel>
 
-      {/* ── Row 4: Engagement Depth + Top Schools ────────────────── */}
+      {/* ── Row 4: Engagement Depth + Top Schools ────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Panel loading={!depth} slow={slow}>
-          {depth && ov && (
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            <EngagementDepthChart data={depth as any} totalJoined={ov.totalJoined} />
-          )}
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+          {depth && ov && <EngagementDepthChart data={depth as any} totalJoined={ov.totalJoined} />}
         </Panel>
         <Panel loading={!schools} slow={slow}>
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
@@ -172,19 +211,19 @@ export default function StedaDashboard() {
         </Panel>
       </div>
 
-      {/* ── Row 5: Activation Timeline ───────────────────────────── */}
+      {/* ── Row 5: Activation Timeline ───────────────────────────────── */}
       <Panel loading={!timeline} slow={slow}>
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         {timeline && <TimelineChart data={timeline as any} />}
       </Panel>
 
-      {/* ── Row 6: District Breakdown ────────────────────────────── */}
+      {/* ── Row 6: District Breakdown ────────────────────────────────── */}
       <Panel loading={!districts} slow={slow}>
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         {districts && <DistrictChart data={districts as any} />}
       </Panel>
 
-      {/* ── Row 7: Demographics + Designation ────────────────────── */}
+      {/* ── Row 7: Demographics + Designation ────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Panel loading={!demographics} slow={slow}>
           {demographics && (
@@ -192,8 +231,7 @@ export default function StedaDashboard() {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               gender={(demographics as any).gender}
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              schoolType={(demographics as any).schoolType}
-            />
+              schoolType={(demographics as any).schoolType} />
           )}
         </Panel>
         <Panel loading={!demographics} slow={slow}>
@@ -202,7 +240,7 @@ export default function StedaDashboard() {
         </Panel>
       </div>
 
-      {/* ── Row 8: Community Sentiment ───────────────────────────── */}
+      {/* ── Row 8: Community Sentiment ───────────────────────────────── */}
       <Panel loading={!sentiment} slow={slow}>
         {sentiment && (
           <SentimentDonut
@@ -223,8 +261,7 @@ export default function StedaDashboard() {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             recentMessages={(sentiment as any).recentMessages}
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            dailyActivity={(sentiment as any).dailyActivity}
-          />
+            dailyActivity={(sentiment as any).dailyActivity} />
         )}
       </Panel>
     </div>
