@@ -4,9 +4,10 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const ALL_TABS = [
-  { href: '/',       label: 'Overview',      roles: ['admin'] },
-  { href: '/report', label: 'Cohort Report', roles: ['admin'] },
-  { href: '/steda',  label: 'STEDA Report',  roles: ['admin', 'steda'] },
+  { href: '/',         label: 'Overview',      roles: ['admin'] },
+  { href: '/report',   label: 'Cohort Report', roles: ['admin'] },
+  { href: '/steda',    label: 'STEDA Report',  roles: ['admin', 'steda'] },
+  { href: '/coaching', label: 'Coaching',      roles: ['admin', 'steda'] },
 ]
 
 export default function NavTabs({ role }: { role: string }) {

@@ -14,8 +14,12 @@ export async function middleware(request: NextRequest) {
   const session = await verifySessionToken(token)
   if (!session) return NextResponse.redirect(new URL('/login', request.url))
 
-  // STEDA role: only /steda and /api/steda/* are allowed
-  if (session.role === 'steda' && !pathname.startsWith('/steda') && !pathname.startsWith('/api/steda')) {
+  // STEDA role: only /steda, /coaching and their API routes are allowed
+  if (session.role === 'steda' &&
+      !pathname.startsWith('/steda') &&
+      !pathname.startsWith('/api/steda') &&
+      !pathname.startsWith('/coaching') &&
+      !pathname.startsWith('/api/coaching')) {
     return NextResponse.redirect(new URL('/steda', request.url))
   }
 
