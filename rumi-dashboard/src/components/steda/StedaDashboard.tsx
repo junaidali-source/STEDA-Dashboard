@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
+import { supabaseBrowser } from '@/lib/supabase-browser'
 import KPIBanner             from './KPIBanner'
 import FunnelChart           from './FunnelChart'
 import DistrictChart         from './DistrictChart'
@@ -101,15 +102,22 @@ export default function StedaDashboard() {
     const deadTimer = setTimeout(() => { if (!loadedRef.current) setError('Request timed out. Refresh to retry.') }, 20000)
     fetchAll(from, to).then(() => { clearTimeout(slowTimer); clearTimeout(deadTimer) })
 
-    // Auto-refresh every 5 minutes
+    // Auto-refresh all panels every 5 minutes
     const refresh = setInterval(() => fetchAll(from, to), 5 * 60 * 1000)
-    // Sentiment poll every 30s
-    const pollSentiment = setInterval(async () => {
-      try { const se = await fetch('/api/steda/sentiment').then(r => r.json()); if (!se.error) setSentiment(se) }
-      catch { /* ignore */ }
-    }, 30_000)
 
-    return () => { clearTimeout(slowTimer); clearTimeout(deadTimer); clearInterval(refresh); clearInterval(pollSentiment) }
+    // Supabase Realtime: push sentiment update to ALL users instantly on new message
+    const channel = supabaseBrowser
+      .channel('whatsapp-live')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'whatsapp_messages' }, () => {
+        fetch('/api/steda/sentiment').then(r => r.json()).then(se => { if (!se.error) setSentiment(se) }).catch(() => {})
+      })
+      .subscribe()
+
+    return () => {
+      clearTimeout(slowTimer); clearTimeout(deadTimer)
+      clearInterval(refresh)
+      supabaseBrowser.removeChannel(channel)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
