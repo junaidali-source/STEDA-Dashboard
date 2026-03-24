@@ -130,9 +130,18 @@ client.on('auth_failure', (msg) => {
   writeStatus('auth_failure', { error: msg })
 })
 
+async function pingHeartbeat() {
+  await supabase.from('wa_heartbeat').upsert({ id: 1, updated_at: new Date().toISOString() }, { onConflict: 'id' })
+}
+
 client.on('ready', async () => {
   console.log('[ready] WhatsApp client is ready!')
   writeStatus('connected', { startedAt: new Date().toISOString() })
+
+  // Write first heartbeat immediately, then every 60s
+  await pingHeartbeat()
+  setInterval(pingHeartbeat, 60_000)
+
   try {
     const chats = await client.getChats()
     const groups = chats.filter(c => c.isGroup || c.isCommunity)
@@ -151,7 +160,7 @@ client.on('disconnected', (reason) => {
 
 const SAFE_TYPES = new Set(['chat', 'image', 'video', 'audio', 'document', 'sticker'])
 
-client.on('message', async (msg) => {
+client.on('message_create', async (msg) => {
   try {
     if (!SAFE_TYPES.has(msg.type)) return
     if (!msg.body) return

@@ -99,14 +99,16 @@ async function loadDbMessages(): Promise<{ messages: WaMessage[]; liveConnected:
       source:    'live' as const,
     }))
 
-    // Live = any message inserted in the last 5 minutes
-    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
-    const { count } = await supabase
-      .from('whatsapp_messages')
-      .select('*', { count: 'exact', head: true })
-      .gt('created_at', fiveMinAgo)
+    // Live = whatsapp-service heartbeat updated in last 2 minutes
+    const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString()
+    const { data: hb } = await supabase
+      .from('wa_heartbeat')
+      .select('updated_at')
+      .eq('id', 1)
+      .single()
+    const liveConnected = !!hb && hb.updated_at > twoMinAgo
 
-    return { messages, liveConnected: (count ?? 0) > 0 }
+    return { messages, liveConnected }
   } catch {
     return { messages: [], liveConnected: false }
   }
