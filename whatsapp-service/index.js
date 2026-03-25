@@ -134,6 +134,39 @@ async function pingHeartbeat() {
   await supabase.from('wa_heartbeat').upsert({ id: 1, updated_at: new Date().toISOString() }, { onConflict: 'id' })
 }
 
+// ── Backfill: fetch full group history and upsert to Supabase ────────────────
+async function backfillHistory(chat) {
+  console.log(`[backfill] Fetching history for "${chat.name}"…`)
+  try {
+    const messages = await chat.fetchMessages({ limit: 5000 })
+    let saved = 0, skipped = 0
+    for (const msg of messages) {
+      try {
+        const text = msg.body?.trim() ?? ''
+        if (!text || text.length <= 5) { skipped++; continue }
+        if (text.includes('<Media') || text.includes('omitted')) { skipped++; continue }
+        const sender = msg._data?.notifyName ?? msg.author ?? 'Unknown'
+        if (ADMINS.has(sender)) { skipped++; continue }
+        const isoDate = new Date(msg.timestamp * 1000).toISOString()
+        await insertMessage({
+          id:        msg.id._serialized,
+          timestamp: isoDate,
+          date:      isoDate.slice(0, 10),
+          sender:    sender.trim(),
+          text,
+          sentiment: classifySentiment(text),
+          group:     chat.name,
+          source:    'live',
+        })
+        saved++
+      } catch { skipped++ }
+    }
+    console.log(`[backfill] "${chat.name}" — ${saved} saved, ${skipped} skipped`)
+  } catch (e) {
+    console.error(`[backfill] Error for "${chat.name}":`, e.message)
+  }
+}
+
 client.on('ready', async () => {
   console.log('[ready] WhatsApp client is ready!')
   writeStatus('connected', { startedAt: new Date().toISOString() })
@@ -148,8 +181,19 @@ client.on('ready', async () => {
     console.log('\n[ready] Available groups/communities:')
     groups.forEach(g => console.log(`  • "${g.name}"`))
     console.log()
+
+    // Backfill history for all target groups
+    const targets = groups.filter(g =>
+      TARGET_GROUPS.some(t => g.name.toLowerCase().includes(t))
+    )
+    if (targets.length === 0) {
+      console.log('[backfill] No matching groups found for backfill.')
+    }
+    for (const chat of targets) {
+      await backfillHistory(chat)
+    }
   } catch (e) {
-    console.error('[ready] Could not list chats:', e.message)
+    console.error('[ready] Error:', e.message)
   }
 })
 

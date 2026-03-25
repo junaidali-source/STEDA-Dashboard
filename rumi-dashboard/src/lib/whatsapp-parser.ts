@@ -86,7 +86,7 @@ async function loadDbMessages(): Promise<{ messages: WaMessage[]; liveConnected:
       .from('whatsapp_messages')
       .select('timestamp, date, sender, text, sentiment, created_at')
       .order('timestamp', { ascending: true })
-      .limit(2000)
+      .limit(10000)
 
     if (error) throw error
 
