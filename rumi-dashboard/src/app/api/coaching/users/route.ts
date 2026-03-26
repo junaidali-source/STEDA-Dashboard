@@ -17,6 +17,10 @@ const SELECT_COLS = `
   MAX(cs.created_at)::date                AS last_session,
   ROUND(AVG((cs.analysis_data->'scores'->>'percentage')::numeric)
     FILTER(WHERE ${SCORE_FILTER}), 1)     AS avg_score,
+  (array_agg((cs.analysis_data->'scores'->>'percentage')::numeric
+    ORDER BY cs.created_at ASC)  FILTER(WHERE ${SCORE_FILTER}))[1] AS first_score,
+  (array_agg((cs.analysis_data->'scores'->>'percentage')::numeric
+    ORDER BY cs.created_at DESC) FILTER(WHERE ${SCORE_FILTER}))[1] AS latest_score,
   ROUND(AVG((cs.analysis_data->'scores'->>'goal1_total')::numeric)
     FILTER(WHERE ${SCORE_FILTER}), 1)     AS avg_g1,
   ROUND(AVG((cs.analysis_data->'scores'->>'goal2_total')::numeric)

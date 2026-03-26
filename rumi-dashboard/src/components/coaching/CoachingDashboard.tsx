@@ -29,6 +29,8 @@ interface CoachUser {
   first_session:       string | null
   last_session:        string | null
   avg_score:           number | null
+  first_score:         number | null
+  latest_score:        number | null
   avg_g1:              number | null
   avg_g2:              number | null
   avg_g3:              number | null
@@ -270,6 +272,7 @@ export default function CoachingDashboard({ role }: { role: string }) {
                     <th className="text-right px-4 py-3 font-medium">Done</th>
                     <th className="text-right px-4 py-3 font-medium">Rate</th>
                     <th className="text-right px-4 py-3 font-medium bg-indigo-900/20 border-l border-gray-700">Avg Score</th>
+                    <th className="text-right px-4 py-3 font-medium bg-indigo-900/20" title="Change from first to latest completed session">Trend</th>
                     <th className="text-right px-4 py-3 font-medium text-gray-500" title="Formative Assessment">G1</th>
                     <th className="text-right px-4 py-3 font-medium text-gray-500" title="Student Engagement">G2</th>
                     <th className="text-right px-4 py-3 font-medium text-gray-500" title="Quality Content">G3</th>
@@ -283,7 +286,7 @@ export default function CoachingDashboard({ role }: { role: string }) {
                 <tbody>
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={isSteda ? 16 : 14}
+                      <td colSpan={isSteda ? 17 : 15}
                         className="text-center py-16 text-gray-500">
                         {loading ? 'Loading…' : 'No coaching sessions found for this filter.'}
                       </td>
@@ -314,6 +317,18 @@ export default function CoachingDashboard({ role }: { role: string }) {
                           {u.avg_score !== null
                             ? <RateBadge rate={u.avg_score} />
                             : <span className="text-gray-600">—</span>}
+                        </td>
+                        <td className="px-4 py-3 text-right bg-indigo-900/10">
+                          {(() => {
+                            if (u.first_score == null || u.latest_score == null || u.completed_sessions < 2) return <span className="text-gray-600">—</span>
+                            const delta = Math.round((u.latest_score - u.first_score) * 10) / 10
+                            if (delta === 0) return <span className="text-gray-400">±0</span>
+                            return (
+                              <span className={`flex items-center justify-end gap-0.5 font-medium text-xs ${delta > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                {delta > 0 ? '▲' : '▼'}{Math.abs(delta)}pp
+                              </span>
+                            )
+                          })()}
                         </td>
                         <td className="px-4 py-3 text-right text-gray-400">{u.avg_g1 ?? '—'}</td>
                         <td className="px-4 py-3 text-right text-gray-400">{u.avg_g2 ?? '—'}</td>
