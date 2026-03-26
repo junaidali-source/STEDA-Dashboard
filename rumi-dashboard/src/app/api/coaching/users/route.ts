@@ -6,7 +6,7 @@ const SCORE_FILTER = `cs.status='completed' AND cs.analysis_data IS NOT NULL`
 
 const SELECT_COLS = `
   u.id,
-  COALESCE(u.first_name, 'Unknown')       AS name,
+  TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')) AS name,
   u.phone_number,
   COALESCE(u.school_name, '—')            AS school,
   COALESCE(u.preferred_language, '—')     AS language,
@@ -29,7 +29,7 @@ const SELECT_COLS = `
     FILTER(WHERE ${SCORE_FILTER}), 1)     AS avg_g5`
 
 const GROUP_BY = `
-  GROUP BY u.id, u.first_name, u.phone_number, u.school_name, u.preferred_language, u.created_at`
+  GROUP BY u.id, u.first_name, u.last_name, u.phone_number, u.school_name, u.preferred_language, u.created_at`
 
 export async function GET(req: NextRequest) {
   try {
