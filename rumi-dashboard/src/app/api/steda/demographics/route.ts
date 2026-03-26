@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getSteadaData } from '@/lib/steda-phones'
 
+export const dynamic = 'force-dynamic'
+
 const DESIG_ORDER = ['PST', 'EST', 'SST', 'HST', 'JEST/JST', 'ECT', 'Sr. ECT', 'Lecturer']
 
 export async function GET() {

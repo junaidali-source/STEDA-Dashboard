@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { pool } from '@/lib/db'
 
+export const dynamic = 'force-dynamic'
+
 // Reusable CTE block — params: $1=week_start, $2=country, $3=partner
 function cohortCTE(): string {
   return `

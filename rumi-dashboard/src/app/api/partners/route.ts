@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { pool } from '@/lib/db'
 
+export const dynamic = 'force-dynamic'
+
 // Personal/generic email domains to exclude
 const PERSONAL_DOMAINS = new Set([
   'gmail.com','yahoo.com','outlook.com','hotmail.com',

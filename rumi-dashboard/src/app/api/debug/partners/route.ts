@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { pool } from '@/lib/db'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * Debug endpoint — shows ALL dashboard_users and their scopes,
  * with NO filtering, so we can see exactly what's in the DB.

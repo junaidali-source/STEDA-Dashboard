@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { pool } from '@/lib/db'
 import { getSteadaData } from '@/lib/steda-phones'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest) {
   try {
     const sp   = new URL(req.url).searchParams

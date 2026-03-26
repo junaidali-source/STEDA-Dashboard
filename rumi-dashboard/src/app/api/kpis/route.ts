@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { pool, userWhere, dateWhere, filterParams } from '@/lib/db'
 
+export const dynamic = 'force-dynamic'
+
 function buildKpiQuery(): string {
   return `
     SELECT

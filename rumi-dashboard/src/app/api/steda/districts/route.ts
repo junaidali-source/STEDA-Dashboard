@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { pool } from '@/lib/db'
 import { getSteadaData } from '@/lib/steda-phones'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     const { phones, districtListed } = getSteadaData()

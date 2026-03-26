@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { parseWhatsAppChat } from '@/lib/whatsapp-parser'
 
+export const dynamic = 'force-dynamic'
+
 // Dynamically parsed from the WhatsApp export file.
 // Results are cached for 5 minutes. Drop a new export file to refresh.
 export async function GET() {

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { pool, userWhere, dateWhere, filterParams } from '@/lib/db'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: Request) {
   const sp    = new URL(req.url).searchParams
   const limit = Math.min(Number(sp.get('limit') || 20), 50)

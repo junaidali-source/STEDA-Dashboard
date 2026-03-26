@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { pool } from '@/lib/db'
 import { getSteadaData } from '@/lib/steda-phones'
 
+export const dynamic = 'force-dynamic'
+
 function batchLabel(dateStr: string): string {
   const d = new Date(dateStr)
   const mar1  = new Date('2026-03-01')

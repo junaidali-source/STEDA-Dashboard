@@ -1,6 +1,8 @@
 import { Suspense } from 'react'
 import StedaDashboard from '@/components/steda/StedaDashboard'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata = {
   title: 'STEDA × Rumi — Partner Report',
   description: 'Live STEDA partnership impact dashboard — Sindh, Pakistan',

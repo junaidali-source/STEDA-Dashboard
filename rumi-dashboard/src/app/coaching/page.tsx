@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import { verifySessionToken } from '@/lib/auth'
 import CoachingDashboard from '@/components/coaching/CoachingDashboard'
 
+export const dynamic = 'force-dynamic'
+
 export default async function CoachingPage() {
   const token = cookies().get('session')?.value
   const session = token ? await verifySessionToken(token) : null

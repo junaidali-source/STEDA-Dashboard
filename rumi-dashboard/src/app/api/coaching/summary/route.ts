@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { pool } from '@/lib/db'
 import { getSteadaData } from '@/lib/steda-phones'
 
+export const dynamic = 'force-dynamic'
+
 const empty = () => ({
   usersWithSessions: 0, totalSessions: 0, completedSessions: 0,
   completionRate: 0, activeThisMonth: 0, sessionsThisMonth: 0,

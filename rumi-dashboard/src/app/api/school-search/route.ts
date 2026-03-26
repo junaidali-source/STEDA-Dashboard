@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { pool, filterParams } from '@/lib/db'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams
   const q = sp.get('q') || ''

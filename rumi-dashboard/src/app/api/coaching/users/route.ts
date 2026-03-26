@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { pool } from '@/lib/db'
 import { getSteadaData } from '@/lib/steda-phones'
 
+export const dynamic = 'force-dynamic'
+
 const SCORE_FILTER = `cs.status='completed' AND cs.analysis_data IS NOT NULL`
 
 const SELECT_COLS = `
