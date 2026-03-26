@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 
 interface Segment       { name: string; value: number; color: string }
@@ -17,6 +18,7 @@ interface Props {
   liveConnected?: boolean
   recentMessages?: RecentMessage[]
   dailyActivity?:  DailyActivity[]
+  onRefresh?:     () => Promise<void>
 }
 
 const SENTIMENT_COLORS: Record<string, string> = {
@@ -39,9 +41,16 @@ function formatRelativeTime(isoString: string): string {
 
 export default function SentimentDonut({
   totalMessages, segments, praiseQuotes, issueQuotes,
-  totalCommunity, lastUpdated, liveConnected, recentMessages, dailyActivity,
+  totalCommunity, lastUpdated, liveConnected, recentMessages, dailyActivity, onRefresh,
 }: Props) {
+  const [refreshing, setRefreshing] = useState(false)
   const relativeTime = lastUpdated ? formatRelativeTime(lastUpdated) : null
+
+  async function handleRefresh() {
+    if (!onRefresh || refreshing) return
+    setRefreshing(true)
+    try { await onRefresh() } finally { setRefreshing(false) }
+  }
 
   return (
     <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 space-y-5">
@@ -54,6 +63,24 @@ export default function SentimentDonut({
           ) : null}
         </div>
         <div className="flex flex-col items-end gap-1">
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 px-2 py-1 rounded-full transition-colors disabled:opacity-50"
+              title="Refresh sentiment data"
+            >
+              <svg
+                className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`}
+                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              {refreshing ? 'Refreshing…' : 'Refresh'}
+            </button>
+          )}
           {/* Live service connection badge */}
           {liveConnected ? (
             <span className="flex items-center gap-1.5 text-xs text-green-400 bg-green-900/40 px-2 py-1 rounded-full">

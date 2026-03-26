@@ -269,7 +269,11 @@ export default function StedaDashboard() {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             recentMessages={(sentiment as any).recentMessages}
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            dailyActivity={(sentiment as any).dailyActivity} />
+            dailyActivity={(sentiment as any).dailyActivity}
+            onRefresh={async () => {
+              const se = await fetch('/api/steda/sentiment').then(r => r.json())
+              if (!se.error) setSentiment(se)
+            }} />
         )}
       </Panel>
     </div>
