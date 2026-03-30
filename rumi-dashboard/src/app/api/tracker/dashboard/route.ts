@@ -181,12 +181,16 @@ async function autoSaveSnapshot(metrics: ReturnType<typeof computeLiveMetrics> e
   } catch { /* non-critical */ }
 }
 
+async function safeQuery<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
+  try { return await fn() } catch { return fallback }
+}
+
 export async function GET() {
   try {
-    const [liveMetrics, milestonesRes, actionsRes, targetsRes] = await Promise.all([
-      computeLiveMetrics(),
-      pool.query(`SELECT * FROM plan_milestones ORDER BY sort_order`),
-      pool.query(`
+    const [liveMetrics, milestones, actions, targets] = await Promise.all([
+      safeQuery(computeLiveMetrics, null),
+      safeQuery(() => pool.query(`SELECT * FROM plan_milestones ORDER BY sort_order`).then(r => r.rows), []),
+      safeQuery(() => pool.query(`
         SELECT ai.*, mm.title AS meeting_title, mm.meeting_date
         FROM action_items ai
         LEFT JOIN meeting_minutes mm ON mm.id = ai.meeting_id
@@ -195,19 +199,14 @@ export async function GET() {
           CASE ai.priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
           ai.due_date ASC NULLS LAST
         LIMIT 50
-      `),
-      pool.query(`SELECT * FROM kpi_targets`),
+      `).then(r => r.rows), []),
+      safeQuery(() => pool.query(`SELECT * FROM kpi_targets`).then(r => r.rows), []),
     ])
 
     // Auto-save daily snapshot in background (non-blocking)
     if (liveMetrics) autoSaveSnapshot(liveMetrics).catch(() => {})
 
-    return NextResponse.json({
-      snapshot:   liveMetrics,
-      milestones: milestonesRes.rows,
-      actions:    actionsRes.rows,
-      targets:    targetsRes.rows,
-    })
+    return NextResponse.json({ snapshot: liveMetrics, milestones, actions, targets })
   } catch (e: unknown) {
     return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 })
   }
