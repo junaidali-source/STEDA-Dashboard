@@ -32,8 +32,10 @@ export default async function TrackerPage() {
         <div>
           <h1 className="text-2xl font-bold text-white">STEDA × Rumi Deployment Tracker</h1>
           <p className="text-sm text-gray-500 mt-1">
-            {sn?.snapshot_date ? `Latest snapshot: ${sn.snapshot_date}` : 'No snapshots yet'} ·
-            <Link href="/tracker/metrics" className="text-indigo-400 hover:text-indigo-300 ml-1">Add snapshot →</Link>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Live data · auto-saves daily snapshot
+            </span>
           </p>
         </div>
         <div className="flex gap-3">
