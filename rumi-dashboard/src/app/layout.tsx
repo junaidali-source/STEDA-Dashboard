@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import NavTabs from '@/components/NavTabs'
 import LogoutButton from '@/components/LogoutButton'
 import { verifySessionToken } from '@/lib/auth'
+import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -41,6 +42,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </header>
         )}
         {children}
+        <Analytics />
       </body>
     </html>
   )
