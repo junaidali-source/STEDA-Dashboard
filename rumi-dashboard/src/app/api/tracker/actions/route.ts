@@ -1,31 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { pool } from '@/lib/db'
+import { supabase } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   try {
-    const sp      = new URL(req.url).searchParams
-    const status  = sp.get('status')
-    const owner   = sp.get('owner')
-    const priority= sp.get('priority')
+    const sp       = new URL(req.url).searchParams
+    const status   = sp.get('status')
+    const priority = sp.get('priority')
 
-    const conditions: string[] = []
-    const params: unknown[]    = []
-    if (status)   { params.push(status);   conditions.push(`ai.status = $${params.length}`) }
-    if (owner)    { params.push(owner);    conditions.push(`ai.owner ILIKE $${params.length}`) }
-    if (priority) { params.push(priority); conditions.push(`ai.priority = $${params.length}`) }
+    let query = supabase
+      .from('action_items')
+      .select('*, meeting_minutes(title, meeting_date)')
+      .order('due_date', { ascending: true, nullsFirst: false })
 
-    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
-    const res = await pool.query(
-      `SELECT ai.*, mm.title AS meeting_title, mm.meeting_date
-       FROM action_items ai
-       LEFT JOIN meeting_minutes mm ON mm.id = ai.meeting_id
-       ${where}
-       ORDER BY ai.due_date ASC NULLS LAST, ai.created_at DESC`,
-      params
-    )
-    return NextResponse.json(res.rows)
+    if (status)   query = query.eq('status', status)
+    if (priority) query = query.eq('priority', priority)
+
+    const { data, error } = await query
+    if (error) throw error
+
+    // Flatten meeting join to match existing shape
+    const rows = (data ?? []).map((r: Record<string, unknown>) => {
+      const mm = r.meeting_minutes as { title?: string; meeting_date?: string } | null
+      return { ...r, meeting_title: mm?.title ?? null, meeting_date: mm?.meeting_date ?? null, meeting_minutes: undefined }
+    })
+
+    return NextResponse.json(rows)
   } catch (e: unknown) {
     return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 })
   }
@@ -35,7 +36,13 @@ export async function PATCH(req: NextRequest) {
   try {
     const { id, status } = await req.json()
     if (!id || !status) return NextResponse.json({ error: 'id and status required' }, { status: 400 })
-    await pool.query(`UPDATE action_items SET status = $1 WHERE id = $2`, [status, id])
+
+    const { error } = await supabase
+      .from('action_items')
+      .update({ status })
+      .eq('id', id)
+
+    if (error) throw error
     return NextResponse.json({ ok: true })
   } catch (e: unknown) {
     return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 })

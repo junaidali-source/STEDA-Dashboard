@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { pool } from '@/lib/db'
+import { supabase } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const [meetingRes, actionsRes] = await Promise.all([
-      pool.query(`SELECT * FROM meeting_minutes WHERE id = $1`, [params.id]),
-      pool.query(`SELECT * FROM action_items WHERE meeting_id = $1 ORDER BY priority DESC, due_date ASC NULLS LAST`, [params.id]),
+    const [{ data: meeting, error: me }, { data: actions, error: ae }] = await Promise.all([
+      supabase.from('meeting_minutes').select('*').eq('id', params.id).single(),
+      supabase.from('action_items').select('*').eq('meeting_id', params.id)
+        .order('due_date', { ascending: true, nullsFirst: false }),
     ])
-    if (!meetingRes.rows[0]) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-    return NextResponse.json({ meeting: meetingRes.rows[0], actions: actionsRes.rows })
+
+    if (me || !meeting) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    if (ae) throw ae
+
+    return NextResponse.json({ meeting, actions: actions ?? [] })
   } catch (e: unknown) {
     return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 })
   }

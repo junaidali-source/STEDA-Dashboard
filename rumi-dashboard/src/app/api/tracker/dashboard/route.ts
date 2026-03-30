@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { pool } from '@/lib/db'
 import { getSteadaData } from '@/lib/steda-phones'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
@@ -107,16 +107,10 @@ async function computeLiveMetrics() {
   const tr = totalReqRes.rows[0]
   const usedAnyPct = totalJoined > 0 ? Math.round((usedAny / totalJoined) * 100) : 0
 
-  // Community members from WhatsApp Supabase
+  // Community members from WhatsApp messages (same Supabase project)
   let communityMembers: number | null = null
   try {
-    const sb = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_ANON_KEY!
-    )
-    const { data } = await sb
-      .from('whatsapp_messages')
-      .select('sender_phone')
+    const { data } = await supabase.from('whatsapp_messages').select('sender_phone')
     if (data) {
       communityMembers = new Set(data.map((r: { sender_phone: string }) => r.sender_phone)).size
     }
@@ -152,32 +146,37 @@ async function autoSaveSnapshot(metrics: ReturnType<typeof computeLiveMetrics> e
   if (!metrics) return
   try {
     const today = new Date().toISOString().slice(0, 10)
-    const { rows } = await pool.query(
-      `SELECT id FROM metric_snapshots WHERE snapshot_date = $1`, [today]
-    )
-    if (rows.length > 0) return // already saved today
+    const { data } = await supabase
+      .from('metric_snapshots')
+      .select('id')
+      .eq('snapshot_date', today)
+      .limit(1)
 
-    await pool.query(
-      `INSERT INTO metric_snapshots (
-         snapshot_date, teachers_listed, teachers_joined, joined_pct,
-         used_any_feature, used_any_pct, total_requests, completion_pct,
-         lp_teachers, lp_requests, lp_completion, coaching_teachers,
-         video_teachers, video_completion, image_teachers,
-         depth_0, depth_1, depth_2, depth_3, community_members, source
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
-      [
-        today,
-        metrics.teachers_listed, metrics.teachers_joined, metrics.joined_pct,
-        metrics.used_any_feature, metrics.used_any_pct,
-        metrics.total_requests, metrics.completion_pct,
-        metrics.lp_teachers, metrics.lp_requests, metrics.lp_completion,
-        metrics.coaching_teachers,
-        metrics.video_teachers, metrics.video_completion,
-        metrics.image_teachers,
-        metrics.depth_0, metrics.depth_1, metrics.depth_2, metrics.depth_3,
-        metrics.community_members, 'auto',
-      ]
-    )
+    if (data && data.length > 0) return // already saved today
+
+    await supabase.from('metric_snapshots').insert({
+      snapshot_date:    today,
+      teachers_listed:  metrics.teachers_listed,
+      teachers_joined:  metrics.teachers_joined,
+      joined_pct:       metrics.joined_pct,
+      used_any_feature: metrics.used_any_feature,
+      used_any_pct:     metrics.used_any_pct,
+      total_requests:   metrics.total_requests,
+      completion_pct:   metrics.completion_pct,
+      lp_teachers:      metrics.lp_teachers,
+      lp_requests:      metrics.lp_requests,
+      lp_completion:    metrics.lp_completion,
+      coaching_teachers:metrics.coaching_teachers,
+      video_teachers:   metrics.video_teachers,
+      video_completion: metrics.video_completion,
+      image_teachers:   metrics.image_teachers,
+      depth_0:          metrics.depth_0,
+      depth_1:          metrics.depth_1,
+      depth_2:          metrics.depth_2,
+      depth_3:          metrics.depth_3,
+      community_members:metrics.community_members,
+      source:           'auto',
+    })
   } catch { /* non-critical */ }
 }
 
@@ -189,18 +188,17 @@ export async function GET() {
   try {
     const [liveMetrics, milestones, actions, targets] = await Promise.all([
       safeQuery(computeLiveMetrics, null),
-      safeQuery(() => pool.query(`SELECT * FROM plan_milestones ORDER BY sort_order`).then(r => r.rows), []),
-      safeQuery(() => pool.query(`
-        SELECT ai.*, mm.title AS meeting_title, mm.meeting_date
-        FROM action_items ai
-        LEFT JOIN meeting_minutes mm ON mm.id = ai.meeting_id
-        WHERE ai.status = 'open'
-        ORDER BY
-          CASE ai.priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
-          ai.due_date ASC NULLS LAST
-        LIMIT 50
-      `).then(r => r.rows), []),
-      safeQuery(() => pool.query(`SELECT * FROM kpi_targets`).then(r => r.rows), []),
+      safeQuery(() => supabase.from('plan_milestones').select('*').order('sort_order').then(r => r.data ?? []), []),
+      safeQuery(() => supabase.from('action_items')
+        .select('*, meeting_minutes(title, meeting_date)')
+        .eq('status', 'open')
+        .order('due_date', { ascending: true, nullsFirst: false })
+        .limit(50)
+        .then(r => (r.data ?? []).map((a: Record<string, unknown>) => {
+          const mm = a.meeting_minutes as { title?: string; meeting_date?: string } | null
+          return { ...a, meeting_minutes: undefined, meeting_title: mm?.title ?? null, meeting_date: mm?.meeting_date ?? null }
+        })), []),
+      safeQuery(() => supabase.from('kpi_targets').select('*').then(r => r.data ?? []), []),
     ])
 
     // Auto-save daily snapshot in background (non-blocking)
