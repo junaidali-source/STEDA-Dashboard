@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { verifySessionToken } from '@/lib/auth'
+import { supabase } from '@/lib/supabase'
 import IngestButton from '@/components/tracker/IngestButton'
 import Link from 'next/link'
 
@@ -13,11 +14,15 @@ export default async function MeetingsPage() {
   if (!session) redirect('/login')
   if (session.role !== 'admin') redirect('/')
 
-  let meetings: Array<{ id: string; title: string; meeting_date: string; participants: string[]; action_count: number; open_count: number; fathom_url: string }> = []
-  try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/tracker/meetings`, { cache: 'no-store' })
-    if (res.ok) meetings = await res.json()
-  } catch {}
+  const { data } = await supabase
+    .from('meeting_minutes')
+    .select('*, action_items(id, status)')
+    .order('meeting_date', { ascending: false })
+
+  const meetings = (data ?? []).map((m: Record<string, unknown>) => {
+    const actions = (m.action_items as { id: string; status: string }[]) ?? []
+    return { ...m, action_items: undefined, action_count: actions.length, open_count: actions.filter(a => a.status === 'open').length }
+  }) as Array<{ id: string; title: string; meeting_date: string; participants: string[]; action_count: number; open_count: number; fathom_url: string }>
 
   return (
     <div className="max-w-screen-2xl mx-auto px-6 py-8 space-y-6">

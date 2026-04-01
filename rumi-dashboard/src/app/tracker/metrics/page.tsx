@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { verifySessionToken } from '@/lib/auth'
+import { supabase } from '@/lib/supabase'
 import MetricChart from '@/components/tracker/MetricChart'
 import SnapshotModal from '@/components/tracker/SnapshotModal'
 
@@ -13,11 +14,13 @@ export default async function MetricsPage() {
   if (!session) redirect('/login')
   if (session.role !== 'admin') redirect('/')
 
-  let snapshots: never[] = []
-  try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/tracker/metrics`, { cache: 'no-store' })
-    if (res.ok) snapshots = await res.json()
-  } catch {}
+  const { data: snapshots } = await supabase
+    .from('metric_snapshots')
+    .select('*')
+    .order('snapshot_date', { ascending: true })
+    .limit(52)
+
+  const rows = snapshots ?? []
 
   return (
     <div className="max-w-screen-2xl mx-auto px-6 py-8 space-y-6">
@@ -31,10 +34,10 @@ export default async function MetricsPage() {
 
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
         <p className="text-xs text-gray-400 font-medium mb-4">KPI Trends</p>
-        <MetricChart snapshots={snapshots} />
+        <MetricChart snapshots={rows} />
       </div>
 
-      {snapshots.length > 0 && (
+      {rows.length > 0 && (
         <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
           <table className="w-full text-xs">
             <thead>
@@ -45,7 +48,7 @@ export default async function MetricsPage() {
               </tr>
             </thead>
             <tbody>
-              {(snapshots as Array<{ snapshot_date: string; teachers_listed: number; teachers_joined: number; joined_pct: number; used_any_pct: number; lp_teachers: number; coaching_teachers: number; source: string }>).map((s, i) => (
+              {(rows as Array<{ snapshot_date: string; teachers_listed: number; teachers_joined: number; joined_pct: number; used_any_pct: number; lp_teachers: number; coaching_teachers: number; source: string }>).map((s, i) => (
                 <tr key={i} className={`border-b border-gray-800/50 ${i%2===1 ? 'bg-gray-900/30':''}`}>
                   <td className="px-4 py-3 text-gray-300 whitespace-nowrap">{s.snapshot_date}</td>
                   <td className="px-4 py-3 text-gray-400">{s.teachers_listed ?? '—'}</td>
