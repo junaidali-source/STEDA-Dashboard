@@ -7,6 +7,7 @@ import GrowthChart from './GrowthChart'
 import FeatureChart from './FeatureChart'
 import SchoolsTable from './SchoolsTable'
 import DiscoverabilityPanel from './DiscoverabilityPanel'
+import StedaCohortPanel from './steda/StedaCohortPanel'
 
 function buildQS(params: Record<string, string>): string {
   const p = new URLSearchParams()
@@ -88,11 +89,16 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      <StedaCohortPanel />
+
       {!kpis ? (
         <Spinner />
       ) : (
-        <KPICards data={kpis} previous={kpisPrev} />
+        <div className="border-t border-slate-200 pt-8">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 mb-4">Platform analytics</p>
+          <KPICards data={kpis} previous={kpisPrev} />
+        </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

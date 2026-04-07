@@ -87,15 +87,14 @@ export default function FilterBar() {
 
   return (
     <div className="space-y-3">
-      {/* ── Main filter row ── */}
-      <div className="flex flex-wrap items-center gap-3 bg-white border border-gray-200 rounded-xl px-5 py-4 shadow-sm">
-        <span className="font-semibold text-gray-700 text-sm">Filters:</span>
+      <div className="flex flex-wrap items-center gap-3 bg-white border border-slate-200 rounded-2xl px-5 py-4 shadow-sm shadow-slate-200/50">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 shrink-0">Filters</span>
 
         {/* Country */}
         <select
           value={country}
           onChange={(e) => push(e.target.value, schoolInput, partner, fromInput, toInput, showCompare ? compFrom : '', showCompare ? compTo : '')}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400"
         >
           {COUNTRIES.map((c) => (
             <option key={c.code} value={c.code}>{c.label}</option>
@@ -106,7 +105,7 @@ export default function FilterBar() {
         <select
           value={partner}
           onChange={(e) => push(country, schoolInput, e.target.value, fromInput, toInput, showCompare ? compFrom : '', showCompare ? compTo : '')}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400"
         >
           <option value="">All Partners</option>
           {partners.map((p) => (
