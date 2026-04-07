@@ -11,8 +11,10 @@ export default async function CoachingPage() {
   if (!session) redirect('/login')
 
   return (
-    <main className="max-w-screen-2xl mx-auto px-6 py-8">
-      <CoachingDashboard role={session.role} />
+    <main className="min-h-[calc(100vh-3.5rem)] bg-gray-950">
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+        <CoachingDashboard role={session.role} />
+      </div>
     </main>
   )
 }
