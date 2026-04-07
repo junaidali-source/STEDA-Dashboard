@@ -163,11 +163,15 @@ export default function CoachingDashboard({ role }: { role: string }) {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white">Coaching Sessions</h1>
-        <p className="text-sm text-gray-400 mt-1">
+        <h1 className="text-2xl font-bold text-white">Coaching &amp; HOTS observation results</h1>
+        <p className="text-sm text-gray-400 mt-1 max-w-3xl leading-relaxed">
           {isSteda
-            ? 'Breakdown of coaching sessions for STEDA teachers'
-            : 'Comprehensive coaching activity across all registered users'}
+            ? 'STEDA teachers: session counts, HOTS rubric scores, and per-dimension averages (G1–G5).'
+            : 'All users with coaching: session counts, HOTS rubric scores, and per-dimension averages (G1–G5).'}
+          {' '}
+          Classroom observations are scored with the{' '}
+          <span className="text-gray-300">HOTS (Higher Order Thinking Skills)</span> framework; the earlier OECD-based
+          rubric is no longer used.
         </p>
       </div>
 
@@ -225,12 +229,12 @@ export default function CoachingDashboard({ role }: { role: string }) {
           {/* KPI Cards — scores */}
           {summary.avgScore !== null && (
             <div className="grid grid-cols-3 gap-4">
-              <KPICard label="Avg Coaching Score" value={`${summary.avgScore}%`}
-                sub="across all completed sessions"
+              <KPICard label="Avg HOTS score" value={`${summary.avgScore}%`}
+                sub="completed observation sessions"
                 accent={summary.avgScore >= 80 ? 'text-green-400' : summary.avgScore >= 60 ? 'text-yellow-400' : 'text-red-400'} />
-              <KPICard label="Top Score"  value={`${summary.topScore}%`} accent="text-green-400" sub="highest session score" />
+              <KPICard label="Top Score"  value={`${summary.topScore}%`} accent="text-green-400" sub="highest HOTS session score" />
               <KPICard label="Lowest Score" value={`${summary.lowScore}%`}
-                accent={(summary.lowScore ?? 0) >= 60 ? 'text-yellow-400' : 'text-red-400'} sub="lowest session score" />
+                accent={(summary.lowScore ?? 0) >= 60 ? 'text-yellow-400' : 'text-red-400'} sub="lowest HOTS session score" />
             </div>
           )}
 
@@ -239,10 +243,10 @@ export default function CoachingDashboard({ role }: { role: string }) {
             <div className="p-4 border-b border-gray-800 flex items-center justify-between gap-3 flex-wrap">
               <div>
                 <h2 className="text-sm font-semibold text-white">
-                  {isSteda ? 'STEDA Teacher Breakdown' : 'User Breakdown'}
+                  {isSteda ? 'STEDA: HOTS rubric breakdown' : 'HOTS rubric breakdown by user'}
                 </h2>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  {filtered.length} user{filtered.length !== 1 ? 's' : ''} with coaching sessions
+                  {filtered.length} user{filtered.length !== 1 ? 's' : ''} with observation sessions · Avg score &amp; G1–G5 are HOTS rubric averages
                   {loading && ' · refreshing…'}
                 </p>
               </div>
@@ -271,13 +275,13 @@ export default function CoachingDashboard({ role }: { role: string }) {
                     <th className="text-right px-4 py-3 font-medium">Sessions</th>
                     <th className="text-right px-4 py-3 font-medium">Done</th>
                     <th className="text-right px-4 py-3 font-medium">Rate</th>
-                    <th className="text-right px-4 py-3 font-medium bg-indigo-900/20 border-l border-gray-700">Avg Score</th>
+                    <th className="text-right px-4 py-3 font-medium bg-indigo-900/20 border-l border-gray-700" title="HOTS observation rubric — average session score">Avg Score</th>
                     <th className="text-right px-4 py-3 font-medium bg-indigo-900/20" title="Change from first to latest completed session">Trend</th>
-                    <th className="text-right px-4 py-3 font-medium text-gray-500" title="Formative Assessment">G1</th>
-                    <th className="text-right px-4 py-3 font-medium text-gray-500" title="Student Engagement">G2</th>
-                    <th className="text-right px-4 py-3 font-medium text-gray-500" title="Quality Content">G3</th>
-                    <th className="text-right px-4 py-3 font-medium text-gray-500" title="Classroom Interaction">G4</th>
-                    <th className="text-right px-4 py-3 font-medium text-gray-500" title="Classroom Management">G5</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-500" title="HOTS rubric — dimension 1">G1</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-500" title="HOTS rubric — dimension 2">G2</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-500" title="HOTS rubric — dimension 3">G3</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-500" title="HOTS rubric — dimension 4">G4</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-500" title="HOTS rubric — dimension 5">G5</th>
                     <th className="text-left px-4 py-3 font-medium">First Session</th>
                     <th className="text-left px-4 py-3 font-medium">Last Session</th>
                     <th className="text-left px-4 py-3 font-medium">Joined</th>
@@ -349,7 +353,7 @@ export default function CoachingDashboard({ role }: { role: string }) {
               <div className="px-4 py-3 border-t border-gray-800 text-xs text-gray-500 flex flex-wrap justify-between gap-2">
                 <span>{filtered.length} users shown · {filtered.reduce((s, u) => s + u.completed_sessions, 0)} completed sessions total</span>
                 <span className="text-gray-600">
-                  G1 Formative Assessment · G2 Student Engagement · G3 Quality Content · G4 Classroom Interaction · G5 Classroom Management
+                  G1–G5: average score per HOTS rubric dimension (five observation goals).
                 </span>
               </div>
             )}
