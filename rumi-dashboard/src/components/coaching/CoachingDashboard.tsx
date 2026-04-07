@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { HOTS_OBSERVATION_INDICATORS } from '@/lib/hots-rubric'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Partner { id: string; name: string; teacher_count: number }
@@ -46,6 +47,15 @@ interface CoachUser {
 function today()       { return new Date().toISOString().slice(0, 10) }
 function daysAgo(n: number) { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10) }
 function firstOfMonth() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01` }
+
+/** API may return `YYYY-MM-DD` or full ISO; show a clean date in the table. */
+function formatTableDate(value: string | null): string {
+  if (!value) return '—'
+  const ymd = value.slice(0, 10)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd
+  const t = Date.parse(value)
+  return Number.isNaN(t) ? value : new Date(t).toISOString().slice(0, 10)
+}
 
 const PRESETS = [
   { label: 'All Time',   from: '',            to: '' },
@@ -166,8 +176,8 @@ export default function CoachingDashboard({ role }: { role: string }) {
         <h1 className="text-2xl font-bold text-white">Coaching &amp; HOTS observation results</h1>
         <p className="text-sm text-gray-400 mt-1 max-w-3xl leading-relaxed">
           {isSteda
-            ? 'STEDA teachers: session counts, HOTS rubric scores, and per-dimension averages (G1–G5).'
-            : 'All users with coaching: session counts, HOTS rubric scores, and per-dimension averages (G1–G5).'}
+            ? 'STEDA teachers: session counts, overall HOTS score, and averages for each HOTS observation indicator below.'
+            : 'All users with coaching: session counts, overall HOTS score, and averages for each HOTS observation indicator below.'}
           {' '}
           Classroom observations are scored with the{' '}
           <span className="text-gray-300">HOTS (Higher Order Thinking Skills)</span> framework; the earlier OECD-based
@@ -246,7 +256,7 @@ export default function CoachingDashboard({ role }: { role: string }) {
                   {isSteda ? 'STEDA: HOTS rubric breakdown' : 'HOTS rubric breakdown by user'}
                 </h2>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  {filtered.length} user{filtered.length !== 1 ? 's' : ''} with observation sessions · Avg score &amp; G1–G5 are HOTS rubric averages
+                  {filtered.length} user{filtered.length !== 1 ? 's' : ''} with observation sessions · columns under HOTS indicators are rubric averages
                   {loading && ' · refreshing…'}
                 </p>
               </div>
@@ -275,22 +285,31 @@ export default function CoachingDashboard({ role }: { role: string }) {
                     <th className="text-right px-4 py-3 font-medium">Sessions</th>
                     <th className="text-right px-4 py-3 font-medium">Done</th>
                     <th className="text-right px-4 py-3 font-medium">Rate</th>
-                    <th className="text-right px-4 py-3 font-medium bg-indigo-900/20 border-l border-gray-700" title="HOTS observation rubric — average session score">Avg Score</th>
-                    <th className="text-right px-4 py-3 font-medium bg-indigo-900/20" title="Change from first to latest completed session">Trend</th>
-                    <th className="text-right px-4 py-3 font-medium text-gray-500" title="HOTS rubric — dimension 1">G1</th>
-                    <th className="text-right px-4 py-3 font-medium text-gray-500" title="HOTS rubric — dimension 2">G2</th>
-                    <th className="text-right px-4 py-3 font-medium text-gray-500" title="HOTS rubric — dimension 3">G3</th>
-                    <th className="text-right px-4 py-3 font-medium text-gray-500" title="HOTS rubric — dimension 4">G4</th>
-                    <th className="text-right px-4 py-3 font-medium text-gray-500" title="HOTS rubric — dimension 5">G5</th>
-                    <th className="text-left px-4 py-3 font-medium">First Session</th>
-                    <th className="text-left px-4 py-3 font-medium">Last Session</th>
-                    <th className="text-left px-4 py-3 font-medium">Joined</th>
+                    <th rowSpan={2} className="text-right px-4 py-3 font-medium bg-indigo-900/20 border-l border-gray-700 align-bottom" title="HOTS observation rubric — average session score">Avg Score</th>
+                    <th rowSpan={2} className="text-right px-4 py-3 font-medium bg-indigo-900/20 align-bottom" title="Change from first to latest completed session">Trend</th>
+                    <th colSpan={HOTS_OBSERVATION_INDICATORS.length}
+                      className="text-center px-2 py-2 font-medium text-teal-400/95 border-l border-gray-700 bg-teal-950/25 text-[11px] uppercase tracking-wide">
+                      HOTS observation indicators (avg.)
+                    </th>
+                    <th rowSpan={2} className="text-left px-4 py-3 font-medium align-bottom">First Session</th>
+                    <th rowSpan={2} className="text-left px-4 py-3 font-medium align-bottom">Last Session</th>
+                    <th rowSpan={2} className="text-left px-4 py-3 font-medium align-bottom">Joined</th>
+                  </tr>
+                  <tr className="text-gray-400 bg-gray-800/50 border-b border-gray-800">
+                    <th colSpan={isSteda ? 10 : 8} className="p-0 border-0" aria-hidden />
+                    {HOTS_OBSERVATION_INDICATORS.map((ind) => (
+                      <th key={ind.dataKey}
+                        title={ind.description}
+                        className="text-right align-top px-2 py-3 font-medium text-gray-300 border-l border-teal-900/30 bg-teal-950/10 max-w-[6.25rem] whitespace-normal leading-snug">
+                        {ind.label}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={isSteda ? 17 : 15}
+                      <td colSpan={isSteda ? 20 : 18}
                         className="text-center py-16 text-gray-500">
                         {loading ? 'Loading…' : 'No coaching sessions found for this filter.'}
                       </td>
@@ -334,14 +353,14 @@ export default function CoachingDashboard({ role }: { role: string }) {
                             )
                           })()}
                         </td>
-                        <td className="px-4 py-3 text-right text-gray-400">{u.avg_g1 ?? '—'}</td>
-                        <td className="px-4 py-3 text-right text-gray-400">{u.avg_g2 ?? '—'}</td>
-                        <td className="px-4 py-3 text-right text-gray-400">{u.avg_g3 ?? '—'}</td>
-                        <td className="px-4 py-3 text-right text-gray-400">{u.avg_g4 ?? '—'}</td>
-                        <td className="px-4 py-3 text-right text-gray-400">{u.avg_g5 ?? '—'}</td>
-                        <td className="px-4 py-3 text-gray-400 whitespace-nowrap">{u.first_session ?? '—'}</td>
-                        <td className="px-4 py-3 text-gray-400 whitespace-nowrap">{u.last_session ?? '—'}</td>
-                        <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{u.joined}</td>
+                        {HOTS_OBSERVATION_INDICATORS.map((ind) => (
+                          <td key={ind.dataKey} className="px-2 py-3 text-right text-gray-400 border-l border-teal-900/20 bg-teal-950/5" title={ind.description}>
+                            {u[ind.dataKey] ?? '—'}
+                          </td>
+                        ))}
+                        <td className="px-4 py-3 text-gray-400 whitespace-nowrap">{formatTableDate(u.first_session)}</td>
+                        <td className="px-4 py-3 text-gray-400 whitespace-nowrap">{formatTableDate(u.last_session)}</td>
+                        <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{formatTableDate(u.joined)}</td>
                       </tr>
                     )
                   })}
@@ -353,7 +372,7 @@ export default function CoachingDashboard({ role }: { role: string }) {
               <div className="px-4 py-3 border-t border-gray-800 text-xs text-gray-500 flex flex-wrap justify-between gap-2">
                 <span>{filtered.length} users shown · {filtered.reduce((s, u) => s + u.completed_sessions, 0)} completed sessions total</span>
                 <span className="text-gray-600">
-                  G1–G5: average score per HOTS rubric dimension (five observation goals).
+                  HOTS columns: {HOTS_OBSERVATION_INDICATORS.map((i) => i.label).join(' · ')}.
                 </span>
               </div>
             )}
