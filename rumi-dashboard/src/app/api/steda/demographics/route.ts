@@ -1,13 +1,25 @@
-import { NextResponse } from 'next/server'
-import { getSteadaData } from '@/lib/steda-phones'
+import { NextRequest, NextResponse } from 'next/server'
+import { getFilteredStedaTeachers, stedaScopeFromSearchParams } from '@/lib/steda-scope'
 
 export const dynamic = 'force-dynamic'
 
 const DESIG_ORDER = ['PST', 'EST', 'SST', 'HST', 'JEST/JST', 'ECT', 'Sr. ECT', 'Lecturer']
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const { demographics, designations } = getSteadaData()
+    const { region, district } = stedaScopeFromSearchParams(req.nextUrl.searchParams)
+    const teachers = await getFilteredStedaTeachers(region, district)
+    const gender: Record<string, number> = {}
+    const schoolType: Record<string, number> = {}
+    const designations: Record<string, number> = {}
+    for (const t of teachers) {
+      const gen = (t.gender || '').trim()
+      const st = (t.schoolType || '').trim()
+      const des = (t.designation || '').trim()
+      if (gen) gender[gen] = (gender[gen] || 0) + 1
+      if (st) schoolType[st] = (schoolType[st] || 0) + 1
+      if (des) designations[des] = (designations[des] || 0) + 1
+    }
 
     // Sort designations by known order, then alphabetically for unknowns
     const desigEntries = Object.entries(designations).sort(([a], [b]) => {
@@ -20,8 +32,8 @@ export async function GET() {
     })
 
     return NextResponse.json({
-      gender: Object.entries(demographics.gender).map(([name, value]) => ({ name, value })),
-      schoolType: Object.entries(demographics.schoolType).map(([name, value]) => ({ name, value })),
+      gender: Object.entries(gender).map(([name, value]) => ({ name, value })),
+      schoolType: Object.entries(schoolType).map(([name, value]) => ({ name, value })),
       designations: desigEntries.map(([name, value]) => ({ name, value })),
     })
   } catch (e: unknown) {

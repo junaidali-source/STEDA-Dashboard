@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { supabaseBrowser } from '@/lib/supabase-browser'
+import { PK_REGION_OPTIONS } from '@/lib/pk-regions'
 import KPIBanner             from './KPIBanner'
 import FunnelChart           from './FunnelChart'
 import DistrictChart         from './DistrictChart'
@@ -49,6 +50,9 @@ export default function StedaDashboard() {
   const [from, setFrom] = useState('')
   const [to,   setTo]   = useState('')
   const [preset, setPreset] = useState('All Time')
+  const [region, setRegion] = useState('')
+  const [district, setDistrict] = useState('')
+  const [districtOptions, setDistrictOptions] = useState<string[]>([])
 
   const [overview,     setOverview]     = useState<Overview | null>(null)
   const [districts,    setDistricts]    = useState<unknown[] | null>(null)
@@ -64,14 +68,23 @@ export default function StedaDashboard() {
   const [lastRefresh,  setLastRefresh]  = useState<Date | null>(null)
   const loadedRef = useRef(false)
 
-  const fetchAll = useCallback(async (f: string, t: string) => {
-    const qs = [f && `from=${f}`, t && `to=${t}`].filter(Boolean).join('&')
-    const q  = qs ? `?${qs}` : ''
+  const stedaQuery = useCallback(() => {
+    const params = new URLSearchParams()
+    if (from) params.set('from', from)
+    if (to) params.set('to', to)
+    if (region) params.set('region', region)
+    if (district) params.set('district', district)
+    const qs = params.toString()
+    return qs ? `?${qs}` : ''
+  }, [from, to, region, district])
+
+  const fetchAll = useCallback(async () => {
+    const q = stedaQuery()
     try {
       const [ov, di, de, tl, se, ad, dp, tr, sc] = await Promise.all([
         fetch(`/api/steda/overview${q}`).then(r => r.json()),
-        fetch(`/api/steda/districts`).then(r => r.json()),
-        fetch(`/api/steda/demographics`).then(r => r.json()),
+        fetch(`/api/steda/districts${q}`).then(r => r.json()),
+        fetch(`/api/steda/demographics${q}`).then(r => r.json()),
         fetch(`/api/steda/timeline${q}`).then(r => r.json()),
         fetch(`/api/steda/sentiment`).then(r => r.json()),
         fetch(`/api/steda/feature-adoption${q}`).then(r => r.json()),
@@ -94,18 +107,29 @@ export default function StedaDashboard() {
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Unknown error')
     }
+  }, [stedaQuery])
+
+  const fetchAllRef = useRef(fetchAll)
+  fetchAllRef.current = fetchAll
+
+  useEffect(() => {
+    fetch('/api/steda/filters')
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d.districts)) setDistrictOptions(d.districts)
+      })
+      .catch(() => {})
   }, [])
 
-  // Initial load + slow/dead timers
+  // Load + refresh when date range or geography changes; 5m poll; WhatsApp realtime for sentiment
   useEffect(() => {
     const slowTimer = setTimeout(() => { if (!loadedRef.current) setSlow(true) }, 3000)
     const deadTimer = setTimeout(() => { if (!loadedRef.current) setError('Request timed out. Refresh to retry.') }, 20000)
-    fetchAll(from, to).then(() => { clearTimeout(slowTimer); clearTimeout(deadTimer) })
+    loadedRef.current = false
+    fetchAll().then(() => { clearTimeout(slowTimer); clearTimeout(deadTimer) })
 
-    // Auto-refresh all panels every 5 minutes
-    const refresh = setInterval(() => fetchAll(from, to), 5 * 60 * 1000)
+    const refresh = setInterval(() => fetchAllRef.current(), 5 * 60 * 1000)
 
-    // Supabase Realtime: push sentiment update to ALL users instantly on new message
     const channel = supabaseBrowser
       .channel('whatsapp-live')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'whatsapp_messages' }, () => {
@@ -118,21 +142,19 @@ export default function StedaDashboard() {
       clearInterval(refresh)
       supabaseBrowser.removeChannel(channel)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [fetchAll])
 
   function applyPreset(p: typeof PRESETS[0]) {
     setPreset(p.label)
     setFrom(p.from)
     setTo(p.to)
     resetData()
-    fetchAll(p.from, p.to)
   }
 
   function applyCustom() {
     setPreset('Custom')
     resetData()
-    fetchAll(from, to)
+    void fetchAll()
   }
 
   function resetData() {
@@ -167,6 +189,32 @@ export default function StedaDashboard() {
             </button>
           ))}
         </div>
+        <span className="text-xs text-gray-500 shrink-0 hidden sm:inline">|</span>
+        <span className="text-xs text-gray-400 font-medium shrink-0">Region:</span>
+        <select
+          aria-label="Cohort region"
+          title="Cohort region"
+          value={region}
+          onChange={(e) => { setRegion(e.target.value); resetData() }}
+          className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200 outline-none focus:border-teal-500 max-w-[10rem]"
+        >
+          {PK_REGION_OPTIONS.map((r) => (
+            <option key={r.slug || 'all'} value={r.slug}>{r.label}</option>
+          ))}
+        </select>
+        <span className="text-xs text-gray-400 font-medium shrink-0">District:</span>
+        <select
+          aria-label="Cohort district"
+          title="Cohort district"
+          value={district}
+          onChange={(e) => { setDistrict(e.target.value); resetData() }}
+          className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200 outline-none focus:border-teal-500 max-w-[12rem]"
+        >
+          <option value="">All districts</option>
+          {districtOptions.map((d) => (
+            <option key={d} value={d}>{d}</option>
+          ))}
+        </select>
         <div className="flex items-center gap-2 ml-auto flex-wrap">
           <input type="date" value={from} title="From date" placeholder="From"
             onChange={e => { setFrom(e.target.value); setPreset('Custom') }}

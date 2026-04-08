@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { pool } from '@/lib/db'
-import { getSteadaData } from '@/lib/steda-phones'
+import { getFilteredStedaPhones, stedaScopeFromSearchParams } from '@/lib/steda-scope'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,7 +10,8 @@ export async function GET(req: NextRequest) {
     const from = sp.get('from') || null
     const to   = sp.get('to')   || null
 
-    const { phones } = getSteadaData()
+    const { region, district } = stedaScopeFromSearchParams(sp)
+    const phones = await getFilteredStedaPhones(region, district)
     const dc = `AND ($2::date IS NULL OR t.created_at::date >= $2::date) AND ($3::date IS NULL OR t.created_at::date <= $3::date)`
     const p  = [phones, from, to]
 

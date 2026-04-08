@@ -1,87 +1,65 @@
 import { NextResponse } from 'next/server'
-import { pool } from '@/lib/db'
+import { pool, organizationKeySql } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
-const PERSONAL_DOMAINS = new Set([
-  'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com',
-  'live.com', 'icloud.com', 'protonmail.com', 'me.com',
-])
-
-/** Derive a short label from organisation domain (e.g. tcf.org.pk → TCF). */
-function nameFromOrgDomain(domain: string): string {
-  const base = domain.split('.')[0] || domain
-  if (/^[a-zA-Z]{2,4}$/.test(base)) return base.toUpperCase()
-  return base
-    .replace(/([a-z])([0-9])/g, '$1 $2')
-    .replace(/([0-9])([a-z])/gi, '$1 $2')
-    .split(/[-_\s]+/)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ')
+function partnerLabel(key: string): string {
+  switch (key) {
+    case 'tcf': return 'TCF'
+    case 'shofco': return 'SHOFCO'
+    case 'taleemabad': return 'Taleemabad'
+    case 'aps_askari_14': return 'Apsaskari 14'
+    case 'aga_khan': return 'Aga Khan'
+    case 'british_council': return 'British Council'
+    case 'sed_punjab': return 'SED Punjab'
+    case 'steda': return 'STEDA'
+    case 'seld': return 'SELD'
+    case 'rdf': return 'RDF'
+    default:
+      return key
+        .split('_')
+        .filter(Boolean)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ')
+  }
 }
 
-function nameFromEmail(email: string, domain: string): string {
-  const d = (domain || '').toLowerCase()
-  if (!PERSONAL_DOMAINS.has(d)) return nameFromOrgDomain(domain || email.split('@')[1] || '')
-
-  const local = (email.split('@')[0] || 'partner').replace(/[.+_-]+/g, ' ').trim()
-  if (!local) return 'Partner'
-  return local
-    .split(/\s+/)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join(' ')
-}
-
-/**
- * All partner dashboard accounts (any partner* role), even if they have no
- * phone_list scope yet. Teacher count sums phones across all phone_list rows.
- */
 export async function GET() {
   try {
     const { rows } = await pool.query(`
       SELECT
-        du.id,
-        du.email,
-        du.role,
-        NULLIF(TRIM(SPLIT_PART(du.email, '@', 2)), '') AS domain,
-        COALESCE((
-          SELECT SUM(sc.c)::int
-          FROM (
-            SELECT
-              CASE
-                WHEN ast.scope_value ? 'phone_numbers'
-                 AND jsonb_typeof(ast.scope_value->'phone_numbers') = 'array'
-                THEN (
-                  SELECT COUNT(*)::int
-                  FROM jsonb_array_elements_text(ast.scope_value->'phone_numbers')
-                )
-                ELSE 0
-              END AS c
-            FROM access_scopes ast
-            WHERE ast.dashboard_user_id = du.id
-              AND ast.scope_type = 'phone_list'
-          ) sc
-        ), 0) AS teacher_count
-      FROM dashboard_users du
-      WHERE (
-          LOWER(du.role) IN ('partner', 'partner_admin', 'partner_viewer')
-          OR LOWER(du.role) LIKE 'partner\\_%' ESCAPE '\\'
-        )
-        AND du.email NOT ILIKE 'test-%'
-        AND du.email NOT ILIKE '%@test.com'
-        AND POSITION('@' IN du.email) > 1
-      ORDER BY LOWER(du.email)
+        org_key AS id,
+        COUNT(*)::int AS teacher_count,
+        COUNT(*) FILTER (WHERE LEFT(u.phone_number, 2) = '92')::int AS pk_teacher_count,
+        ARRAY_REMOVE(ARRAY_AGG(DISTINCT
+          CASE
+            WHEN LEFT(u.phone_number, 2) <> '92' THEN NULL
+            WHEN LOWER(TRIM(COALESCE(u.region::text, ''))) = 'federal' THEN 'islamabad'
+            WHEN u.region IS NULL OR TRIM(COALESCE(u.region::text, '')) = '' THEN '__unspecified__'
+            ELSE LOWER(TRIM(u.region::text))
+          END
+        ), NULL) AS pk_region_slugs
+      FROM (
+        SELECT u.*, ${organizationKeySql('u')} AS org_key
+        FROM users u
+        WHERE COALESCE(u.is_test_user, false) = false
+      ) u
+      WHERE org_key <> ''
+      GROUP BY org_key
+      ORDER BY COUNT(*) DESC, org_key ASC
     `)
 
     const partners = rows.map((r) => {
-      const email = r.email as string
-      const domain = (r.domain as string) || ''
+      const pkCnt = Number(r.pk_teacher_count) || 0
+      let slugs = (r.pk_region_slugs as string[]) || []
+      if (pkCnt > 0 && slugs.length === 0) slugs = ['__unspecified__']
       return {
         id: r.id as string,
-        name: nameFromEmail(email, domain),
-        email,
-        domain: domain || email.split('@')[1] || '',
+        name: partnerLabel(r.id as string),
+        domain: '',
         teacher_count: Number(r.teacher_count) || 0,
+        pk_teacher_count: pkCnt,
+        pk_region_slugs: slugs,
       }
     })
 

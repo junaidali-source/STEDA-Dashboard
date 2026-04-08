@@ -1,27 +1,32 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { pool } from '@/lib/db'
-import { getSteadaData } from '@/lib/steda-phones'
+import { getFilteredStedaTeachers, stedaScopeFromSearchParams } from '@/lib/steda-scope'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const { phones, districtListed } = getSteadaData()
+    const { region, district } = stedaScopeFromSearchParams(req.nextUrl.searchParams)
+    const teachers = await getFilteredStedaTeachers(region, district)
+    const phones = teachers.map((t) => t.phone)
+    const districtListed: Record<string, number> = {}
+    for (const t of teachers) {
+      const d = (t.district || '').trim()
+      if (d) districtListed[d] = (districtListed[d] || 0) + 1
+    }
 
     // Get onboarded count per district
-    const res = await pool.query(
-      `SELECT u.school_name,
-              -- We'll group by district via phone → CSV lookup client-side
-              u.phone_number,
-              u.registration_completed
+    const res =
+      phones.length === 0
+        ? { rows: [] as { phone_number: string }[] }
+        : await pool.query(
+            `SELECT u.phone_number
        FROM users u
        WHERE u.phone_number = ANY($1::text[])
          AND COALESCE(u.is_test_user, false) = false`,
-      [phones]
-    )
+            [phones]
+          )
 
-    // Build phone → district map from CSV data
-    const { teachers } = getSteadaData()
     const phoneToDistrict: Record<string, string> = {}
     for (const t of teachers) {
       phoneToDistrict[t.phone] = t.district
@@ -29,10 +34,10 @@ export async function GET() {
 
     // Count onboarded per district
     const districtOnboarded: Record<string, number> = {}
-    for (const row of res.rows) {
-      const district = phoneToDistrict[row.phone_number]
-      if (district) {
-        districtOnboarded[district] = (districtOnboarded[district] || 0) + 1
+    for (const row of res.rows as { phone_number: string }[]) {
+      const dKey = phoneToDistrict[row.phone_number]
+      if (dKey) {
+        districtOnboarded[dKey] = (districtOnboarded[dKey] || 0) + 1
       }
     }
 

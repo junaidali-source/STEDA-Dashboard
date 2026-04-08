@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { pool } from '@/lib/db'
-import { getSteadaData } from '@/lib/steda-phones'
+import { getFilteredStedaPhones, stedaScopeFromSearchParams } from '@/lib/steda-scope'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,7 +21,8 @@ export async function GET(req: NextRequest) {
     const from = sp.get('from') || null
     const to   = sp.get('to')   || null
 
-    const { phones } = getSteadaData()
+    const { region, district } = stedaScopeFromSearchParams(sp)
+    const phones = await getFilteredStedaPhones(region, district)
     const res = await pool.query(
       `SELECT DATE_TRUNC('day', created_at)::date::text AS day, COUNT(*)::int AS count
        FROM users

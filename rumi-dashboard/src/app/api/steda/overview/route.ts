@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { pool } from '@/lib/db'
-import { getSteadaData } from '@/lib/steda-phones'
+import { getFilteredStedaPhones, getFilteredStedaTeachers, stedaScopeFromSearchParams } from '@/lib/steda-scope'
 
 export const dynamic = 'force-dynamic'
+
+function toFeature(row: Record<string, number>) {
+  const total = row.total ?? 0
+  const completed = row.completed ?? 0
+  return { total, completed, users: row.users ?? 0, completionPct: total > 0 ? Math.round((completed / total) * 100) : 0 }
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,9 +16,17 @@ export async function GET(req: NextRequest) {
     const from = sp.get('from') || null   // YYYY-MM-DD
     const to   = sp.get('to')   || null
 
-    const { phones, teachers } = getSteadaData()
+    const { region, district } = stedaScopeFromSearchParams(sp)
+    const phones = await getFilteredStedaPhones(region, district)
+    const teachers = await getFilteredStedaTeachers(region, district)
     const totalListed = teachers.length
-    if (phones.length === 0) return NextResponse.json({ error: 'No STEDA phones loaded' }, { status: 500 })
+    if (phones.length === 0) {
+      const empty = { total: 0, completed: 0, users: 0, completionPct: 0 }
+      return NextResponse.json({
+        totalListed: 0, totalJoined: 0, totalNotYet: 0, anyFeatureUsers: 0,
+        lp: empty, coaching: empty, reading: empty, video: empty, image: empty,
+      })
+    }
 
     const joinedRes = await pool.query(
       `SELECT id, COUNT(*) OVER()::int AS total_joined
@@ -53,11 +67,6 @@ export async function GET(req: NextRequest) {
          ) sub`, p
       ),
     ])
-
-    function toFeature(row: Record<string, number>) {
-      const total = row.total ?? 0, completed = row.completed ?? 0
-      return { total, completed, users: row.users ?? 0, completionPct: total > 0 ? Math.round((completed / total) * 100) : 0 }
-    }
 
     return NextResponse.json({
       totalListed, totalJoined, totalNotYet: totalListed - totalJoined,

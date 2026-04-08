@@ -46,8 +46,8 @@ export async function GET(req: Request) {
 
     let previous: Record<string, number> | null = null
     if (hasCompare) {
-      const cp: [string, string, string, string, string, string] =
-        [p[0], p[1], p[2], p[3], compare_from, compare_to]
+      const cp: [string, string, string, string, string, string, string] =
+        [p[0], p[1], p[2], p[3], compare_from, compare_to, p[6]]
       const { rows: prevRows } = await pool.query(q, cp)
       previous = prevRows[0] ?? null
     }

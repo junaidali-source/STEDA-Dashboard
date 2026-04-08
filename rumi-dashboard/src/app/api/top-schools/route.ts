@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(req: Request) {
   const sp    = new URL(req.url).searchParams
   const limit = Math.min(Number(sp.get('limit') || 20), 50)
-  const p     = [...filterParams(req.url), limit]   // limit = $7
+  const p     = [...filterParams(req.url), limit]   // limit = $8
 
   try {
     const { rows } = await pool.query(
@@ -26,7 +26,7 @@ export async function GET(req: Request) {
         AND u.school_name IS NOT NULL AND u.school_name <> ''
       GROUP BY u.school_name, LEFT(u.phone_number, 2)
       ORDER BY teachers DESC
-      LIMIT $7`,
+      LIMIT $8`,
       p
     )
     return NextResponse.json(rows)

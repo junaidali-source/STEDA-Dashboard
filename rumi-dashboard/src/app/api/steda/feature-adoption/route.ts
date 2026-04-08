@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { pool } from '@/lib/db'
-import { getSteadaData } from '@/lib/steda-phones'
+import { getFilteredStedaPhones, stedaScopeFromSearchParams } from '@/lib/steda-scope'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,7 +10,8 @@ export async function GET(req: NextRequest) {
     const from = sp.get('from') || null
     const to   = sp.get('to')   || null
 
-    const { phones } = getSteadaData()
+    const { region, district } = stedaScopeFromSearchParams(sp)
+    const phones = await getFilteredStedaPhones(region, district)
     const idsRes = await pool.query(
       `SELECT id FROM users WHERE phone_number = ANY($1::text[]) AND COALESCE(is_test_user, false) = false`,
       [phones]

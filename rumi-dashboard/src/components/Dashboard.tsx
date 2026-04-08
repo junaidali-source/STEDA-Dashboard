@@ -36,6 +36,7 @@ interface KPIData {
 export default function Dashboard() {
   const sp           = useSearchParams()
   const country      = sp.get('country')      || 'all'
+  const region       = sp.get('region')       || ''
   const school       = sp.get('school')       || ''
   const partner      = sp.get('partner')      || ''
   const from         = sp.get('from')         || ''
@@ -54,7 +55,7 @@ export default function Dashboard() {
   const fetchAll = useCallback(async () => {
     setKpis(null); setError(null)
     try {
-      const base = { country, school, partner, from, to }
+      const base = { country, region, school, partner, from, to }
       const q    = buildQS(base)
       const qCmp = buildQS({ ...base, compare_from, compare_to })
 
@@ -76,7 +77,7 @@ export default function Dashboard() {
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Unknown error')
     }
-  }, [country, school, partner, from, to, compare_from, compare_to])
+  }, [country, region, school, partner, from, to, compare_from, compare_to])
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
