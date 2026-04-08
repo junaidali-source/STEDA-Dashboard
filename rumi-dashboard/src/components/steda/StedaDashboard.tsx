@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { supabaseBrowser } from '@/lib/supabase-browser'
-import { PK_REGION_OPTIONS } from '@/lib/pk-regions'
 import KPIBanner             from './KPIBanner'
 import FunnelChart           from './FunnelChart'
 import DistrictChart         from './DistrictChart'
@@ -14,6 +13,7 @@ import SentimentDonut        from './SentimentDonut'
 import FeatureTrendsChart    from './FeatureTrendsChart'
 import EngagementDepthChart  from './EngagementDepthChart'
 import TopSchoolsTable       from './TopSchoolsTable'
+import StedaOnboardingSnapshot from './StedaOnboardingSnapshot'
 
 function Spinner({ slow }: { slow?: boolean }) {
   return (
@@ -50,7 +50,6 @@ export default function StedaDashboard() {
   const [from, setFrom] = useState('')
   const [to,   setTo]   = useState('')
   const [preset, setPreset] = useState('All Time')
-  const [region, setRegion] = useState('')
   const [district, setDistrict] = useState('')
   const [districtOptions, setDistrictOptions] = useState<string[]>([])
 
@@ -72,11 +71,10 @@ export default function StedaDashboard() {
     const params = new URLSearchParams()
     if (from) params.set('from', from)
     if (to) params.set('to', to)
-    if (region) params.set('region', region)
     if (district) params.set('district', district)
     const qs = params.toString()
     return qs ? `?${qs}` : ''
-  }, [from, to, region, district])
+  }, [from, to, district])
 
   const fetchAll = useCallback(async () => {
     const q = stedaQuery()
@@ -189,19 +187,6 @@ export default function StedaDashboard() {
             </button>
           ))}
         </div>
-        <span className="text-xs text-gray-500 shrink-0 hidden sm:inline">|</span>
-        <span className="text-xs text-gray-400 font-medium shrink-0">Region:</span>
-        <select
-          aria-label="Cohort region"
-          title="Cohort region"
-          value={region}
-          onChange={(e) => { setRegion(e.target.value); resetData() }}
-          className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200 outline-none focus:border-teal-500 max-w-[10rem]"
-        >
-          {PK_REGION_OPTIONS.map((r) => (
-            <option key={r.slug || 'all'} value={r.slug}>{r.label}</option>
-          ))}
-        </select>
         <span className="text-xs text-gray-400 font-medium shrink-0">District:</span>
         <select
           aria-label="Cohort district"
@@ -232,13 +217,16 @@ export default function StedaDashboard() {
       </div>
 
       {/* ── Row 1: KPI Banner ────────────────────────────────────────── */}
+      <StedaOnboardingSnapshot />
+
+      {/* ── Row 2: KPI Banner ────────────────────────────────────────── */}
       <Panel loading={!ov} slow={slow}>
         {ov && <KPIBanner totalListed={ov.totalListed} totalJoined={ov.totalJoined}
           anyFeatureUsers={ov.anyFeatureUsers} lp={ov.lp} coaching={ov.coaching}
           reading={ov.reading} video={ov.video} image={ov.image} />}
       </Panel>
 
-      {/* ── Row 2: Funnel + Feature Adoption ─────────────────────────── */}
+      {/* ── Row 3: Funnel + Feature Adoption ─────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Panel loading={!ov} slow={slow}>
           {ov && <FunnelChart totalListed={ov.totalListed} totalJoined={ov.totalJoined} anyFeatureUsers={ov.anyFeatureUsers} />}
@@ -249,13 +237,13 @@ export default function StedaDashboard() {
         </Panel>
       </div>
 
-      {/* ── Row 3: Feature Trends ─────────────────────────────────────── */}
+      {/* ── Row 4: Feature Trends ─────────────────────────────────────── */}
       <Panel loading={!trends} slow={slow}>
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         {trends && <FeatureTrendsChart data={trends as any} />}
       </Panel>
 
-      {/* ── Row 4: Engagement Depth + Top Schools ────────────────────── */}
+      {/* ── Row 5: Engagement Depth + Top Schools ────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Panel loading={!depth} slow={slow}>
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
@@ -267,19 +255,19 @@ export default function StedaDashboard() {
         </Panel>
       </div>
 
-      {/* ── Row 5: Activation Timeline ───────────────────────────────── */}
+      {/* ── Row 6: Activation Timeline ───────────────────────────────── */}
       <Panel loading={!timeline} slow={slow}>
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         {timeline && <TimelineChart data={timeline as any} />}
       </Panel>
 
-      {/* ── Row 6: District Breakdown ────────────────────────────────── */}
+      {/* ── Row 7: District Breakdown ────────────────────────────────── */}
       <Panel loading={!districts} slow={slow}>
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         {districts && <DistrictChart data={districts as any} />}
       </Panel>
 
-      {/* ── Row 7: Demographics + Designation ────────────────────────── */}
+      {/* ── Row 8: Demographics + Designation ────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Panel loading={!demographics} slow={slow}>
           {demographics && (
@@ -296,7 +284,7 @@ export default function StedaDashboard() {
         </Panel>
       </div>
 
-      {/* ── Row 8: Community Sentiment ───────────────────────────────── */}
+      {/* ── Row 9: Community Sentiment ───────────────────────────────── */}
       <Panel loading={!sentiment} slow={slow}>
         {sentiment && (
           <SentimentDonut
