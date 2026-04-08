@@ -7,7 +7,7 @@ import GrowthChart from './GrowthChart'
 import FeatureChart from './FeatureChart'
 import SchoolsTable from './SchoolsTable'
 import DiscoverabilityPanel from './DiscoverabilityPanel'
-import StedaCohortPanel from './steda/StedaCohortPanel'
+import UserUsageTable from './UserUsageTable'
 
 function buildQS(params: Record<string, string>): string {
   const p = new URLSearchParams()
@@ -50,6 +50,7 @@ export default function Dashboard() {
   const [features, setFeatures] = useState<unknown[] | null>(null)
   const [schools,  setSchools]  = useState<unknown[] | null>(null)
   const [disc,     setDisc]     = useState<unknown[] | null>(null)
+  const [users,    setUsers]    = useState<unknown[] | null>(null)
   const [error,    setError]    = useState<string | null>(null)
 
   const fetchAll = useCallback(async () => {
@@ -59,12 +60,13 @@ export default function Dashboard() {
       const q    = buildQS(base)
       const qCmp = buildQS({ ...base, compare_from, compare_to })
 
-      const [k, g, f, s, d] = await Promise.all([
+      const [k, g, f, s, d, u] = await Promise.all([
         fetch(`/api/kpis?${qCmp}`).then((r) => r.json()),
         fetch(`/api/user-growth?${q}`).then((r) => r.json()),
         fetch(`/api/feature-usage?${q}`).then((r) => r.json()),
         fetch(`/api/top-schools?${q}`).then((r) => r.json()),
         fetch(`/api/discoverability?${q}`).then((r) => r.json()),
+        fetch(`/api/user-usage?${q}&limit=60`).then((r) => r.json()),
       ])
 
       if (k.error) throw new Error(k.error)
@@ -74,6 +76,7 @@ export default function Dashboard() {
       setFeatures(Array.isArray(f) ? f : [])
       setSchools(Array.isArray(s) ? s : [])
       setDisc(Array.isArray(d) ? d : [])
+      setUsers(Array.isArray(u) ? u : [])
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Unknown error')
     }
@@ -91,8 +94,6 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      <StedaCohortPanel />
-
       {!kpis ? (
         <Spinner />
       ) : (
@@ -122,6 +123,11 @@ export default function Dashboard() {
       {disc ? (
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         <DiscoverabilityPanel data={disc as any} />
+      ) : <div className="bg-white rounded-xl border p-5"><Spinner /></div>}
+
+      {users ? (
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        <UserUsageTable data={users as any} />
       ) : <div className="bg-white rounded-xl border p-5"><Spinner /></div>}
     </div>
   )
