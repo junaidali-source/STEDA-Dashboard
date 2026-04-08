@@ -3,18 +3,15 @@ import { pool } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
-// Personal/generic email domains to exclude
 const PERSONAL_DOMAINS = new Set([
-  'gmail.com','yahoo.com','outlook.com','hotmail.com',
-  'live.com','icloud.com','protonmail.com','me.com',
+  'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com',
+  'live.com', 'icloud.com', 'protonmail.com', 'me.com',
 ])
 
-function toName(domain: string): string {
-  // e.g. tcf.org.pk → TCF   apsaskari14.com → Aps Askari 14
-  const base = domain.split('.')[0]
-  // Short abbreviations (≤4 chars all-alpha) → all caps: tcf → TCF
+/** Derive a short label from organisation domain (e.g. tcf.org.pk → TCF). */
+function nameFromOrgDomain(domain: string): string {
+  const base = domain.split('.')[0] || domain
   if (/^[a-zA-Z]{2,4}$/.test(base)) return base.toUpperCase()
-  // Insert spaces before digit/letter boundaries
   return base
     .replace(/([a-z])([0-9])/g, '$1 $2')
     .replace(/([0-9])([a-z])/gi, '$1 $2')
@@ -23,40 +20,70 @@ function toName(domain: string): string {
     .join(' ')
 }
 
+function nameFromEmail(email: string, domain: string): string {
+  const d = (domain || '').toLowerCase()
+  if (!PERSONAL_DOMAINS.has(d)) return nameFromOrgDomain(domain || email.split('@')[1] || '')
+
+  const local = (email.split('@')[0] || 'partner').replace(/[.+_-]+/g, ' ').trim()
+  if (!local) return 'Partner'
+  return local
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ')
+}
+
+/**
+ * All partner dashboard accounts (any partner* role), even if they have no
+ * phone_list scope yet. Teacher count sums phones across all phone_list rows.
+ */
 export async function GET() {
   try {
     const { rows } = await pool.query(`
       SELECT
         du.id,
         du.email,
-        SPLIT_PART(du.email, '@', 2)          AS domain,
-        ast.scope_type,
-        (
-          SELECT COUNT(*)::int
-          FROM jsonb_array_elements_text(ast.scope_value->'phone_numbers')
-        )                                      AS teacher_count
+        du.role,
+        NULLIF(TRIM(SPLIT_PART(du.email, '@', 2)), '') AS domain,
+        COALESCE((
+          SELECT SUM(sc.c)::int
+          FROM (
+            SELECT
+              CASE
+                WHEN ast.scope_value ? 'phone_numbers'
+                 AND jsonb_typeof(ast.scope_value->'phone_numbers') = 'array'
+                THEN (
+                  SELECT COUNT(*)::int
+                  FROM jsonb_array_elements_text(ast.scope_value->'phone_numbers')
+                )
+                ELSE 0
+              END AS c
+            FROM access_scopes ast
+            WHERE ast.dashboard_user_id = du.id
+              AND ast.scope_type = 'phone_list'
+          ) sc
+        ), 0) AS teacher_count
       FROM dashboard_users du
-      LEFT JOIN access_scopes ast ON ast.dashboard_user_id = du.id
-      WHERE du.role IN ('partner_admin', 'partner_viewer')
-        AND du.email NOT LIKE 'test-%'
-        AND du.email NOT LIKE '%@test.com'
-        AND SPLIT_PART(du.email, '@', 2) NOT IN (
-          'gmail.com','yahoo.com','outlook.com','hotmail.com',
-          'live.com','icloud.com','protonmail.com','me.com'
+      WHERE (
+          LOWER(du.role) IN ('partner', 'partner_admin', 'partner_viewer')
+          OR LOWER(du.role) LIKE 'partner\\_%' ESCAPE '\\'
         )
-        AND ast.scope_type = 'phone_list'
-      ORDER BY SPLIT_PART(du.email, '@', 2)
+        AND du.email NOT ILIKE 'test-%'
+        AND du.email NOT ILIKE '%@test.com'
+        AND POSITION('@' IN du.email) > 1
+      ORDER BY LOWER(du.email)
     `)
 
-    const partners = rows
-      .filter((r) => !PERSONAL_DOMAINS.has(r.domain as string))
-      .map((r) => ({
+    const partners = rows.map((r) => {
+      const email = r.email as string
+      const domain = (r.domain as string) || ''
+      return {
         id: r.id as string,
-        name: toName(r.domain as string),
-        email: r.email as string,
-        domain: r.domain as string,
-        teacher_count: r.teacher_count as number,
-      }))
+        name: nameFromEmail(email, domain),
+        email,
+        domain: domain || email.split('@')[1] || '',
+        teacher_count: Number(r.teacher_count) || 0,
+      }
+    })
 
     return NextResponse.json(partners)
   } catch (e: unknown) {
