@@ -167,23 +167,27 @@ export default function StedaCohortPanel() {
           </div>
           <div className="xl:col-span-2">
             <h3 className="text-sm font-semibold text-slate-800 mb-3">By district</h3>
-            <div className="rounded-xl border border-slate-200 max-h-[420px] overflow-auto">
-              <table className="w-full text-xs text-left">
-                <thead className="sticky top-0 bg-slate-100 text-slate-600 z-10">
+            <div className="rounded-xl border border-slate-200 bg-white shadow-sm max-h-[420px] overflow-auto ring-1 ring-slate-900/5">
+              <table className="w-full text-sm text-left">
+                <caption className="sr-only">Onboarding counts and rates per district</caption>
+                <thead className="sticky top-0 z-10 bg-slate-800 text-white shadow-sm">
                   <tr>
-                    <th className="px-3 py-2 font-semibold">District</th>
-                    <th className="px-3 py-2 font-semibold text-right">Listed</th>
-                    <th className="px-3 py-2 font-semibold text-right">Onboarded</th>
-                    <th className="px-3 py-2 font-semibold text-right">%</th>
+                    <th scope="col" className="px-3 py-2.5 font-semibold text-xs uppercase tracking-wide">District</th>
+                    <th scope="col" className="px-3 py-2.5 font-semibold text-xs uppercase tracking-wide text-right">Listed</th>
+                    <th scope="col" className="px-3 py-2.5 font-semibold text-xs uppercase tracking-wide text-right">Onboarded</th>
+                    <th scope="col" className="px-3 py-2.5 font-semibold text-xs uppercase tracking-wide text-right">%</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {data.districts.map((d) => (
-                    <tr key={d.districtKey} className="border-t border-slate-100 hover:bg-slate-50/80">
-                      <td className="px-3 py-2 text-slate-800 font-medium">{d.label}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-slate-700">{d.listed}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-emerald-700">{d.joined}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-slate-600">{d.onboardedPct}%</td>
+                <tbody className="divide-y divide-slate-100">
+                  {data.districts.map((d, i) => (
+                    <tr
+                      key={d.districtKey}
+                      className={`hover:bg-slate-50 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/80'}`}
+                    >
+                      <td className="px-3 py-2.5 font-medium text-slate-900">{d.label}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-slate-900">{d.listed}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-emerald-800">{d.joined}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums font-medium text-slate-900">{d.onboardedPct}%</td>
                     </tr>
                   ))}
                 </tbody>
