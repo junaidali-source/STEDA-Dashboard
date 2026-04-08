@@ -28,8 +28,10 @@ interface TeacherRow {
 interface Payload {
   totalListed: number
   totalJoined: number
+  totalEngaged: number
   notYet: number
   onboardedPct: number
+  engagementPct: number
   districts: DistrictMapRow[]
   teachers: TeacherRow[]
 }
@@ -118,7 +120,7 @@ export default function StedaCohortPanel() {
       </div>
 
       <div className="p-5 sm:p-8 space-y-8">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Listed cohort</p>
             <p className="text-2xl font-bold text-slate-900 tabular-nums mt-1">{data.totalListed.toLocaleString()}</p>
@@ -139,30 +141,55 @@ export default function StedaCohortPanel() {
             <p className="text-2xl font-bold text-indigo-700 tabular-nums mt-1">{data.onboardedPct}%</p>
             <p className="text-xs text-indigo-800/80 mt-1">Joined ÷ listed</p>
           </div>
+          <div className="rounded-xl border border-blue-200/80 bg-blue-50/90 p-4 col-span-2 lg:col-span-1">
+            <p className="text-xs font-medium text-blue-900 uppercase tracking-wide">Engagement</p>
+            <p className="text-2xl font-bold text-blue-800 tabular-nums mt-1">{data.engagementPct}%</p>
+            <p className="text-xs text-blue-800/80 mt-1">{data.totalEngaged.toLocaleString()} onboarded with ≥1 feature</p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
           <div className="xl:col-span-3 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-slate-800">Regional view</h3>
-              <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-600">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-green-600" /> ≥70%
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-yellow-600" /> 40–69%
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-orange-600" /> 1–39%
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-slate-500" /> 0%
-                </span>
+              <div className="flex flex-col items-end gap-1.5 text-[11px] text-slate-600">
+                <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+                  <span className="text-slate-500 font-medium">Fill (onboarded ÷ listed)</span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-green-600" /> ≥70%
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-yellow-600" /> 40–69%
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-orange-600" /> 1–39%
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-slate-500" /> 0%
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+                  <span className="text-slate-500 font-medium">Ring (engaged ÷ onboarded)</span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full border-2 border-blue-600 bg-transparent" /> ≥70%
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full border-2 border-indigo-500 bg-transparent" /> 40–69%
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full border-2 border-orange-500 bg-transparent" /> 1–39%
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full border-2 border-slate-500 bg-transparent" /> 0%
+                  </span>
+                </div>
               </div>
             </div>
             <StedaOnboardingMap districts={data.districts} />
             <p className="text-[11px] text-slate-500 leading-relaxed">
-              Marker size reflects number of teachers listed in that district; colour reflects share onboarded. Positions are district centroids (Sindh), not school GPS.
+              Marker size reflects teachers listed in that district. Fill colour = onboarding rate; ring colour = share of
+              onboarded teachers with at least one Rumi feature (all-time). Positions are district centroids (Sindh), not
+              school GPS.
             </p>
           </div>
           <div className="xl:col-span-2">
@@ -176,6 +203,13 @@ export default function StedaCohortPanel() {
                     <th scope="col" className="px-3 py-2.5 font-semibold text-xs uppercase tracking-wide text-right">Listed</th>
                     <th scope="col" className="px-3 py-2.5 font-semibold text-xs uppercase tracking-wide text-right">Onboarded</th>
                     <th scope="col" className="px-3 py-2.5 font-semibold text-xs uppercase tracking-wide text-right">%</th>
+                    <th
+                      scope="col"
+                      className="px-3 py-2.5 font-semibold text-xs uppercase tracking-wide text-right"
+                      title="Share of onboarded teachers with at least one Rumi feature (all-time)"
+                    >
+                      Eng.
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -188,6 +222,12 @@ export default function StedaCohortPanel() {
                       <td className="px-3 py-2.5 text-right tabular-nums text-slate-900">{d.listed}</td>
                       <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-emerald-800">{d.joined}</td>
                       <td className="px-3 py-2.5 text-right tabular-nums font-medium text-slate-900">{d.onboardedPct}%</td>
+                      <td
+                        className="px-3 py-2.5 text-right tabular-nums font-semibold text-blue-800"
+                        title={`${d.engaged} of ${d.joined} onboarded`}
+                      >
+                        {d.engagementPct}%
+                      </td>
                     </tr>
                   ))}
                 </tbody>

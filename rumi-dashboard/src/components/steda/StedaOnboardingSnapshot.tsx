@@ -25,8 +25,10 @@ interface TeacherRow {
 interface Payload {
   totalListed: number
   totalJoined: number
+  totalEngaged: number
   notYet: number
   onboardedPct: number
+  engagementPct: number
   districts: DistrictMapRow[]
   teachers: TeacherRow[]
 }
@@ -95,7 +97,7 @@ export default function StedaOnboardingSnapshot() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <div className="rounded-xl border border-gray-800 bg-gray-900 p-4">
           <p className="text-xs text-gray-400 uppercase">Teachers listed</p>
           <p className="text-3xl font-bold text-white tabular-nums">{data.totalListed.toLocaleString()}</p>
@@ -112,11 +114,22 @@ export default function StedaOnboardingSnapshot() {
           <p className="text-xs text-cyan-300 uppercase">Onboarding rate</p>
           <p className="text-3xl font-bold text-cyan-200 tabular-nums">{data.onboardedPct}%</p>
         </div>
+        <div className="rounded-xl border border-indigo-800 bg-indigo-950/40 p-4 col-span-2 lg:col-span-1">
+          <p className="text-xs text-indigo-200 uppercase">Engagement</p>
+          <p className="text-3xl font-bold text-indigo-100 tabular-nums">{data.engagementPct}%</p>
+          <p className="text-[11px] text-indigo-300/90 mt-1">
+            {data.totalEngaged.toLocaleString()} onboarded with ≥1 feature
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
-        <div className="xl:col-span-3">
+        <div className="xl:col-span-3 space-y-2">
           <StedaOnboardingMap districts={data.districts} />
+          <p className="text-[11px] text-gray-400 leading-relaxed">
+            Fill = onboarding rate (joined ÷ listed). Ring = engagement among onboarded (teachers with ≥1 feature,
+            all-time).
+          </p>
         </div>
         <div className="xl:col-span-2 flex flex-col min-h-0">
           <p className="text-xs font-medium text-gray-300 mb-2">By district</p>
@@ -129,6 +142,13 @@ export default function StedaOnboardingSnapshot() {
                   <th scope="col" className="px-3 py-2.5 font-semibold text-xs uppercase tracking-wide text-right">Listed</th>
                   <th scope="col" className="px-3 py-2.5 font-semibold text-xs uppercase tracking-wide text-right">Onboarded</th>
                   <th scope="col" className="px-3 py-2.5 font-semibold text-xs uppercase tracking-wide text-right">%</th>
+                  <th
+                    scope="col"
+                    className="px-3 py-2.5 font-semibold text-xs uppercase tracking-wide text-right"
+                    title="Share of onboarded teachers with at least one Rumi feature (all-time)"
+                  >
+                    Eng.
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/90">
@@ -141,6 +161,9 @@ export default function StedaOnboardingSnapshot() {
                     <td className="px-3 py-2.5 text-right tabular-nums text-zinc-100">{d.listed}</td>
                     <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-emerald-400">{d.joined}</td>
                     <td className="px-3 py-2.5 text-right tabular-nums font-medium text-cyan-300">{d.onboardedPct}%</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums font-medium text-indigo-300" title={`${d.engaged} of ${d.joined} onboarded`}>
+                      {d.engagementPct}%
+                    </td>
                   </tr>
                 ))}
               </tbody>

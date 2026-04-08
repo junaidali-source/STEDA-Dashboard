@@ -2,14 +2,16 @@
 
 import { MapContainer, TileLayer, CircleMarker, Tooltip } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
-import { onboardingHue } from '@/lib/steda-district-geo'
+import { engagementHue, onboardingHue } from '@/lib/steda-district-geo'
 
 export interface DistrictMapRow {
   districtKey: string
   label: string
   listed: number
   joined: number
+  engaged: number
   onboardedPct: number
+  engagementPct: number
   lat: number
   lng: number
 }
@@ -38,16 +40,17 @@ export default function StedaOnboardingMap({ districts }: { districts: DistrictM
         />
         {districts.map((d) => {
           const r = Math.min(26, 5 + Math.sqrt(d.listed) * 0.95)
-          const color = onboardingHue(d.onboardedPct)
+          const fill = onboardingHue(d.onboardedPct)
+          const stroke = engagementHue(d.engagementPct)
           return (
             <CircleMarker
               key={d.districtKey}
               center={[d.lat, d.lng]}
               radius={r}
               pathOptions={{
-                color: '#0f172a',
-                weight: 1,
-                fillColor: color,
+                color: stroke,
+                weight: 2.5,
+                fillColor: fill,
                 fillOpacity: 0.62,
               }}
             >
@@ -55,6 +58,13 @@ export default function StedaOnboardingMap({ districts }: { districts: DistrictM
                 <div className="font-semibold text-slate-900">{d.label}</div>
                 <div className="text-slate-600">
                   Onboarded {d.joined} / {d.listed} ({d.onboardedPct}%)
+                </div>
+                <div className="text-slate-600 mt-0.5">
+                  Engagement {d.engaged} / {d.joined} ({d.engagementPct}%)
+                </div>
+                <div className="text-[11px] text-slate-500 mt-1 max-w-[220px]">
+                  Engagement = onboarded teachers with at least one lesson plan, coaching, reading, video, or image
+                  request (all-time).
                 </div>
               </Tooltip>
             </CircleMarker>

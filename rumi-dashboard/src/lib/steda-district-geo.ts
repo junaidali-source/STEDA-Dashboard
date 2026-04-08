@@ -64,10 +64,18 @@ export function getDistrictLatLng(districtRaw: string): [number, number] {
   return SINDH_FALLBACK
 }
 
-/** 0 = low onboarding, 1 = high — for marker colour */
+/** 0 = low onboarding, 1 = high — for marker fill */
 export function onboardingHue(pct: number): string {
   if (pct >= 70) return '#16a34a'
   if (pct >= 40) return '#ca8a04'
   if (pct > 0) return '#ea580c'
+  return '#64748b'
+}
+
+/** 0 = low engagement, 1 = high — for marker stroke (share of onboarded with ≥1 feature) */
+export function engagementHue(pct: number): string {
+  if (pct >= 70) return '#2563eb'
+  if (pct >= 40) return '#6366f1'
+  if (pct > 0) return '#f97316'
   return '#64748b'
 }
