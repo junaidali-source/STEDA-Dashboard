@@ -98,26 +98,26 @@ export default function StedaOnboardingSnapshot() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <div className="rounded-xl border border-gray-800 bg-gray-900 p-4">
-          <p className="text-xs text-gray-400 uppercase">Teachers listed</p>
-          <p className="text-3xl font-bold text-white tabular-nums">{data.totalListed.toLocaleString()}</p>
+        <div className="rounded-xl border border-slate-700 bg-slate-900 p-4 min-h-[112px] flex flex-col justify-between">
+          <p className="text-[11px] font-semibold tracking-wide text-slate-300 uppercase">Teachers listed</p>
+          <p className="text-3xl font-bold text-white tabular-nums leading-none">{data.totalListed.toLocaleString()}</p>
         </div>
-        <div className="rounded-xl border border-emerald-800 bg-emerald-950/40 p-4">
-          <p className="text-xs text-emerald-300 uppercase">Joined Rumi</p>
-          <p className="text-3xl font-bold text-emerald-200 tabular-nums">{data.totalJoined.toLocaleString()}</p>
+        <div className="rounded-xl border border-emerald-700/70 bg-emerald-950/60 p-4 min-h-[112px] flex flex-col justify-between">
+          <p className="text-[11px] font-semibold tracking-wide text-emerald-200 uppercase">Joined Rumi</p>
+          <p className="text-3xl font-bold text-emerald-100 tabular-nums leading-none">{data.totalJoined.toLocaleString()}</p>
         </div>
-        <div className="rounded-xl border border-amber-800 bg-amber-950/30 p-4">
-          <p className="text-xs text-amber-300 uppercase">Not yet onboarded</p>
-          <p className="text-3xl font-bold text-amber-200 tabular-nums">{data.notYet.toLocaleString()}</p>
+        <div className="rounded-xl border border-amber-700/70 bg-amber-950/55 p-4 min-h-[112px] flex flex-col justify-between">
+          <p className="text-[11px] font-semibold tracking-wide text-amber-200 uppercase">Not yet onboarded</p>
+          <p className="text-3xl font-bold text-amber-100 tabular-nums leading-none">{data.notYet.toLocaleString()}</p>
         </div>
-        <div className="rounded-xl border border-cyan-800 bg-cyan-950/30 p-4">
-          <p className="text-xs text-cyan-300 uppercase">Onboarding rate</p>
-          <p className="text-3xl font-bold text-cyan-200 tabular-nums">{data.onboardedPct}%</p>
+        <div className="rounded-xl border border-cyan-700/70 bg-cyan-950/55 p-4 min-h-[112px] flex flex-col justify-between">
+          <p className="text-[11px] font-semibold tracking-wide text-cyan-200 uppercase">Onboarding rate</p>
+          <p className="text-3xl font-bold text-cyan-100 tabular-nums leading-none">{data.onboardedPct}%</p>
         </div>
-        <div className="rounded-xl border border-indigo-800 bg-indigo-950/40 p-4 col-span-2 lg:col-span-1">
-          <p className="text-xs text-indigo-200 uppercase">Engagement</p>
-          <p className="text-3xl font-bold text-indigo-100 tabular-nums">{data.engagementPct}%</p>
-          <p className="text-[11px] text-indigo-300/90 mt-1">
+        <div className="rounded-xl border border-indigo-700/70 bg-indigo-950/60 p-4 min-h-[112px] col-span-2 lg:col-span-1 flex flex-col justify-between">
+          <p className="text-[11px] font-semibold tracking-wide text-indigo-200 uppercase">Engagement</p>
+          <p className="text-3xl font-bold text-indigo-100 tabular-nums leading-none">{data.engagementPct}%</p>
+          <p className="text-xs text-indigo-100/95 mt-2 leading-snug">
             {data.totalEngaged.toLocaleString()} onboarded with ≥1 feature
           </p>
         </div>
