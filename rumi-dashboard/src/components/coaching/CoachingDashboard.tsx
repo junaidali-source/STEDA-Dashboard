@@ -285,12 +285,31 @@ export default function CoachingDashboard({ role }: { role: string }) {
           </div>
           {!isSteda && partners.length > 0 && (
             <select value={partner} onChange={e => applyPartner(e.target.value)} title="Filter by partner"
-              className="sm:ml-auto bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 outline-none focus:border-teal-500 min-w-[180px]">
+              className="bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-200 outline-none focus:border-teal-500 min-w-[180px]">
               <option value="">All partners</option>
               {partners.map(p => (
                 <option key={p.id} value={p.id}>{p.name} ({p.teacher_count} teachers)</option>
               ))}
             </select>
+          )}
+          {users && users.length > 0 && (
+            <button
+              type="button"
+              onClick={() => exportCSV(users.filter(u => {
+                if (!search) return true
+                const q = search.toLowerCase()
+                return u.name?.toLowerCase().includes(q) || u.school?.toLowerCase().includes(q) ||
+                  u.phone_number?.includes(search) || u.district?.toLowerCase().includes(q) ||
+                  u.designation?.toLowerCase().includes(q)
+              }), isSteda, from, to)}
+              title="Export current filtered view as CSV"
+              className="sm:ml-auto shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-600 hover:bg-teal-500 text-white border border-teal-500/60 transition-colors shadow-sm"
+            >
+              <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 2v8m0 0-3-3m3 3 3-3M3 12h10" />
+              </svg>
+              Export Report
+            </button>
           )}
         </div>
       </section>
@@ -337,23 +356,9 @@ export default function CoachingDashboard({ role }: { role: string }) {
                   {loading && loadedRef.current ? ' · updating…' : ''}
                 </p>
               </div>
-              <div className="flex gap-2 items-center">
-                <input type="search" value={search} onChange={e => setSearch(e.target.value)}
-                  placeholder={isSteda ? 'Search name, school, district…' : 'Search name, school, phone…'}
-                  className="w-full sm:w-64 bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500/30" />
-                <button
-                  type="button"
-                  onClick={() => exportCSV(filtered, isSteda, from, to)}
-                  disabled={filtered.length === 0}
-                  title="Export current view as CSV"
-                  className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-teal-800/70 hover:bg-teal-700 text-teal-100 border border-teal-700/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 2v8m0 0-3-3m3 3 3-3M3 12h10" />
-                  </svg>
-                  Export CSV
-                </button>
-              </div>
+              <input type="search" value={search} onChange={e => setSearch(e.target.value)}
+                placeholder={isSteda ? 'Search name, school, district…' : 'Search name, school, phone…'}
+                className="w-full sm:w-72 bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500/30" />
             </div>
 
             <p className="text-[11px] text-gray-500 px-4 sm:px-5 py-2 border-b border-gray-800 flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -450,11 +455,17 @@ export default function CoachingDashboard({ role }: { role: string }) {
                               )
                             })()}
                           </td>
-                          {HOTS_OBSERVATION_INDICATORS.map((ind) => (
-                            <td key={ind.dataKey} className="px-2 py-3 text-right text-gray-300 tabular-nums border-l border-teal-900/25 bg-teal-950/10" title={`${ind.label}: ${ind.description}`}>
-                              {u[ind.dataKey] ?? '—'}
-                            </td>
-                          ))}
+                          {HOTS_OBSERVATION_INDICATORS.map((ind) => {
+                            const val = u[ind.dataKey]
+                            return (
+                              <td key={ind.dataKey} className="px-2 py-3 text-right tabular-nums border-l border-teal-900/25 bg-teal-950/10"
+                                title={val != null ? `${ind.label}: ${val}` : `${ind.label}: per-indicator data not recorded for this teacher's sessions`}>
+                                {val != null
+                                  ? <span className="text-teal-300 font-medium">{val}</span>
+                                  : <span className="text-gray-700 text-[11px]" aria-label="no data">—</span>}
+                              </td>
+                            )
+                          })}
                           <td className="px-3 py-3 text-gray-400 whitespace-nowrap tabular-nums text-[12px]">{formatTableDate(u.first_session)}</td>
                           <td className="px-3 py-3 text-gray-400 whitespace-nowrap tabular-nums text-[12px]">{formatTableDate(u.last_session)}</td>
                           <td className="px-3 py-3 text-gray-500 whitespace-nowrap tabular-nums text-[12px]">{formatTableDate(u.joined)}</td>

@@ -24,16 +24,31 @@ const SELECT_COLS = `
     ORDER BY cs.created_at ASC)  FILTER(WHERE ${SCORE_FILTER}))[1] AS first_score,
   (array_agg((${PCT})::numeric
     ORDER BY cs.created_at DESC) FILTER(WHERE ${SCORE_FILTER}))[1] AS latest_score,
-  ROUND(AVG((cs.analysis_data->'scores'->>'goal1_total')::numeric)
-    FILTER(WHERE ${SCORE_FILTER}), 1)     AS avg_g1,
-  ROUND(AVG((cs.analysis_data->'scores'->>'goal2_total')::numeric)
-    FILTER(WHERE ${SCORE_FILTER}), 1)     AS avg_g2,
-  ROUND(AVG((cs.analysis_data->'scores'->>'goal3_total')::numeric)
-    FILTER(WHERE ${SCORE_FILTER}), 1)     AS avg_g3,
-  ROUND(AVG((cs.analysis_data->'scores'->>'goal4_total')::numeric)
-    FILTER(WHERE ${SCORE_FILTER}), 1)     AS avg_g4,
-  ROUND(AVG((cs.analysis_data->'scores'->>'goal5_total')::numeric)
-    FILTER(WHERE ${SCORE_FILTER}), 1)     AS avg_g5`
+  ROUND(AVG(COALESCE(
+    (cs.analysis_data->'scores'->>'goal1_total')::numeric,
+    (cs.analysis_data->'scores'->'goal_scores'->'goal1_formative_assessment'->>'area_score')::numeric,
+    (cs.analysis_data->'scores'->'goal1_score'->>'score')::numeric
+  )) FILTER(WHERE ${SCORE_FILTER}), 1)    AS avg_g1,
+  ROUND(AVG(COALESCE(
+    (cs.analysis_data->'scores'->>'goal2_total')::numeric,
+    (cs.analysis_data->'scores'->'goal_scores'->'goal2_student_engagement'->>'area_score')::numeric,
+    (cs.analysis_data->'scores'->'goal2_score'->>'score')::numeric
+  )) FILTER(WHERE ${SCORE_FILTER}), 1)    AS avg_g2,
+  ROUND(AVG(COALESCE(
+    (cs.analysis_data->'scores'->>'goal3_total')::numeric,
+    (cs.analysis_data->'scores'->'goal_scores'->'goal3_quality_content'->>'area_score')::numeric,
+    (cs.analysis_data->'scores'->'goal3_score'->>'score')::numeric
+  )) FILTER(WHERE ${SCORE_FILTER}), 1)    AS avg_g3,
+  ROUND(AVG(COALESCE(
+    (cs.analysis_data->'scores'->>'goal4_total')::numeric,
+    (cs.analysis_data->'scores'->'goal_scores'->'goal4_classroom_interaction'->>'area_score')::numeric,
+    (cs.analysis_data->'scores'->'goal4_score'->>'score')::numeric
+  )) FILTER(WHERE ${SCORE_FILTER}), 1)    AS avg_g4,
+  ROUND(AVG(COALESCE(
+    (cs.analysis_data->'scores'->>'goal5_total')::numeric,
+    (cs.analysis_data->'scores'->'goal_scores'->'goal5_classroom_management'->>'area_score')::numeric,
+    (cs.analysis_data->'scores'->'goal5_score'->>'score')::numeric
+  )) FILTER(WHERE ${SCORE_FILTER}), 1)    AS avg_g5`
 
 const GROUP_BY = `
   GROUP BY u.id, u.first_name, u.last_name, u.phone_number, u.school_name, u.preferred_language, u.created_at`
