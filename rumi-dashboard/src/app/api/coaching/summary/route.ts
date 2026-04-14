@@ -19,15 +19,16 @@ export async function GET(req: NextRequest) {
     const scope   = sp.get('scope')   || null
 
     const SF = `cs.status='completed' AND cs.analysis_data IS NOT NULL`
+    const PCT = `COALESCE(cs.analysis_data->'scores'->>'percentage', cs.analysis_data->'scores'->>'overall_percentage')`
     const COLS = `
       COUNT(DISTINCT cs.user_id)::int AS users_with_sessions,
       COUNT(*)::int AS total_sessions,
       COUNT(*) FILTER(WHERE cs.status='completed')::int AS completed_sessions,
       COUNT(DISTINCT cs.user_id) FILTER(WHERE cs.created_at >= date_trunc('month', now()))::int AS active_this_month,
       COUNT(*) FILTER(WHERE cs.created_at >= date_trunc('month', now()))::int AS sessions_this_month,
-      ROUND(AVG((cs.analysis_data->'scores'->>'percentage')::numeric) FILTER(WHERE ${SF}), 1) AS avg_score,
-      ROUND(MAX((cs.analysis_data->'scores'->>'percentage')::numeric) FILTER(WHERE ${SF}), 1) AS top_score,
-      ROUND(MIN((cs.analysis_data->'scores'->>'percentage')::numeric) FILTER(WHERE ${SF}), 1) AS low_score`
+      ROUND(AVG((${PCT})::numeric) FILTER(WHERE ${SF}), 1) AS avg_score,
+      ROUND(MAX((${PCT})::numeric) FILTER(WHERE ${SF}), 1) AS top_score,
+      ROUND(MIN((${PCT})::numeric) FILTER(WHERE ${SF}), 1) AS low_score`
 
     let rows: Record<string, number>[]
 

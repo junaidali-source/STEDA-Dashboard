@@ -42,6 +42,42 @@ interface CoachUser {
   gender?:      string
 }
 
+// ── CSV export ─────────────────────────────────────────────────────────────────
+function csvCell(v: string | number | null | undefined): string {
+  if (v == null) return ''
+  const s = String(v)
+  return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s
+}
+
+function exportCSV(data: CoachUser[], isSteda: boolean, from: string, to: string) {
+  const range = from && to ? `${from}_to_${to}` : from ? `from_${from}` : to ? `to_${to}` : 'all_time'
+  const headers = ['#', 'Name', 'Phone', 'School',
+    ...(isSteda ? ['District', 'Designation', 'Gender'] : ['Language']),
+    'Sessions', 'Done', 'Rate %', 'Avg HOTS %', 'Trend (pp)',
+    'HOTS 1 Assessment', 'HOTS 2 Cognitive', 'HOTS 3 Instruction', 'HOTS 4 Discourse', 'HOTS 5 Climate',
+    'First Session', 'Last Session', 'Joined',
+  ]
+  const rows = data.map((u, i) => {
+    const rate = u.total_sessions > 0 ? Math.round((u.completed_sessions / u.total_sessions) * 100) : 0
+    const trend = (u.first_score != null && u.latest_score != null && u.completed_sessions >= 2)
+      ? Math.round((u.latest_score - u.first_score) * 10) / 10 : ''
+    return [
+      i + 1, u.name, u.phone_number, u.school,
+      ...(isSteda ? [u.district ?? '', u.designation ?? '', u.gender ?? ''] : [u.language]),
+      u.total_sessions, u.completed_sessions, rate,
+      u.avg_score ?? '', trend,
+      u.avg_g1 ?? '', u.avg_g2 ?? '', u.avg_g3 ?? '', u.avg_g4 ?? '', u.avg_g5 ?? '',
+      formatTableDate(u.first_session), formatTableDate(u.last_session), formatTableDate(u.joined),
+    ]
+  })
+  const csv = [headers, ...rows].map(r => r.map(csvCell).join(',')).join('\n')
+  const blob = new Blob(['\uFEFF' + csv, ''], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = `coaching_hots_${range}.csv`; a.click()
+  URL.revokeObjectURL(url)
+}
+
 // ── Date helpers ───────────────────────────────────────────────────────────────
 function today()       { return new Date().toISOString().slice(0, 10) }
 function daysAgo(n: number) { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10) }
@@ -301,9 +337,23 @@ export default function CoachingDashboard({ role }: { role: string }) {
                   {loading && loadedRef.current ? ' · updating…' : ''}
                 </p>
               </div>
-              <input type="search" value={search} onChange={e => setSearch(e.target.value)}
-                placeholder={isSteda ? 'Search name, school, district…' : 'Search name, school, phone…'}
-                className="w-full sm:w-72 bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500/30" />
+              <div className="flex gap-2 items-center">
+                <input type="search" value={search} onChange={e => setSearch(e.target.value)}
+                  placeholder={isSteda ? 'Search name, school, district…' : 'Search name, school, phone…'}
+                  className="w-full sm:w-64 bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500/30" />
+                <button
+                  type="button"
+                  onClick={() => exportCSV(filtered, isSteda, from, to)}
+                  disabled={filtered.length === 0}
+                  title="Export current view as CSV"
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-teal-800/70 hover:bg-teal-700 text-teal-100 border border-teal-700/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 2v8m0 0-3-3m3 3 3-3M3 12h10" />
+                  </svg>
+                  Export CSV
+                </button>
+              </div>
             </div>
 
             <p className="text-[11px] text-gray-500 px-4 sm:px-5 py-2 border-b border-gray-800 flex flex-wrap items-center gap-x-2 gap-y-1">

@@ -5,6 +5,7 @@ import { getSteadaData } from '@/lib/steda-phones'
 export const dynamic = 'force-dynamic'
 
 const SCORE_FILTER = `cs.status='completed' AND cs.analysis_data IS NOT NULL`
+const PCT = `COALESCE(cs.analysis_data->'scores'->>'percentage', cs.analysis_data->'scores'->>'overall_percentage')`
 
 const SELECT_COLS = `
   u.id,
@@ -17,11 +18,11 @@ const SELECT_COLS = `
   COUNT(cs.id) FILTER(WHERE cs.status='completed')::int AS completed_sessions,
   MIN(cs.created_at)::date                AS first_session,
   MAX(cs.created_at)::date                AS last_session,
-  ROUND(AVG((cs.analysis_data->'scores'->>'percentage')::numeric)
+  ROUND(AVG((${PCT})::numeric)
     FILTER(WHERE ${SCORE_FILTER}), 1)     AS avg_score,
-  (array_agg((cs.analysis_data->'scores'->>'percentage')::numeric
+  (array_agg((${PCT})::numeric
     ORDER BY cs.created_at ASC)  FILTER(WHERE ${SCORE_FILTER}))[1] AS first_score,
-  (array_agg((cs.analysis_data->'scores'->>'percentage')::numeric
+  (array_agg((${PCT})::numeric
     ORDER BY cs.created_at DESC) FILTER(WHERE ${SCORE_FILTER}))[1] AS latest_score,
   ROUND(AVG((cs.analysis_data->'scores'->>'goal1_total')::numeric)
     FILTER(WHERE ${SCORE_FILTER}), 1)     AS avg_g1,
