@@ -14,6 +14,7 @@ import FeatureTrendsChart    from './FeatureTrendsChart'
 import EngagementDepthChart  from './EngagementDepthChart'
 import TopSchoolsTable       from './TopSchoolsTable'
 import StedaOnboardingSnapshot from './StedaOnboardingSnapshot'
+import TorchBearersPanel       from './TorchBearersPanel'
 
 function Spinner({ slow }: { slow?: boolean }) {
   return (
@@ -284,7 +285,10 @@ export default function StedaDashboard() {
         </Panel>
       </div>
 
-      {/* ── Row 9: Community Sentiment ───────────────────────────────── */}
+      {/* ── Row 9: Torch Bearers — Cohort 1 ─────────────────────────── */}
+      <TorchBearersPanel queryStr={stedaQuery()} />
+
+      {/* ── Row 10: Community Sentiment ──────────────────────────────── */}
       <Panel loading={!sentiment} slow={slow}>
         {sentiment && (
           <SentimentDonut
