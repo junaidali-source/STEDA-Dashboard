@@ -32,57 +32,70 @@ interface WaConfig {
 
 // ── WhatsApp Activation Modal ────────────────────────────────────────────────
 function WaActivateModal({ onClose }: { onClose: () => void }) {
-  const [config, setConfig] = useState<WaConfig>({ status: 'offline', qr_code: null, groups: [] })
-  const [launching, setLaunching] = useState(true)
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [config, setConfig]           = useState<WaConfig>({ status: 'offline', qr_code: null, groups: [] })
+  const [step, setStep]               = useState<1 | 2 | 3>(1)
+  const [selected, setSelected]       = useState<Set<string>>(new Set())
+  const intervalRef                   = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const poll = useCallback(async () => {
     try {
       const d: WaConfig = await fetch('/api/wa/config').then(r => r.json())
       setConfig(d)
-      if (d.status === 'connected') {
-        if (intervalRef.current) clearInterval(intervalRef.current)
-      }
     } catch {}
   }, [])
 
   useEffect(() => {
-    // Auto-start whatsapp-service in background (no-op on Vercel)
-    fetch('/api/wa/launch', { method: 'POST' })
-      .catch(() => {})
-      .finally(() => setLaunching(false))
-
-    // Poll Supabase for QR / connection status
+    // Auto-start the service (no-op on Vercel)
+    fetch('/api/wa/launch', { method: 'POST' }).catch(() => {})
     poll()
     intervalRef.current = setInterval(poll, 3000)
     return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
   }, [poll])
 
-  // step: 1 = waiting/connecting, 2 = QR shown or authenticated, 3 = connected
-  const step =
-    config.status === 'connected'                             ? 3 :
-    config.status === 'authenticated'                         ? 2 :
-    config.status === 'waiting_for_qr' && config.qr_code     ? 2 : 1
+  // Advance from step 1 → 2 once connected and groups are available
+  useEffect(() => {
+    if (step === 1 && config.status === 'connected' && config.groups.length > 0) {
+      // Pre-select groups that look like Rumi/STEDA groups
+      const auto = new Set(
+        config.groups.filter(g =>
+          ['rumi', 'onboarding', 'cohort', 'torch bearer', 'steda', 'feedback'].some(k =>
+            g.toLowerCase().includes(k)
+          )
+        )
+      )
+      setSelected(auto)
+      setStep(2)
+    }
+  }, [config, step])
+
+  const toggleGroup = (g: string) =>
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(g) ? next.delete(g) : next.add(g)
+      return next
+    })
 
   const STEPS = [
-    { n: 1, label: 'Connecting' },
-    { n: 2, label: 'Scan QR'    },
-    { n: 3, label: 'Connected'  },
+    { n: 1, label: 'Scan QR'        },
+    { n: 2, label: 'Select Groups'  },
+    { n: 3, label: 'Confirm'        },
   ]
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-lg shadow-2xl">
-        {/* Modal header */}
+
+        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
           <div className="flex items-center gap-2">
             <span className="text-lg">📱</span>
             <div>
               <h3 className="text-sm font-bold text-white">Connect WhatsApp Live</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Enables real-time message streaming to the dashboard</p>
+              <p className="text-xs text-gray-500 mt-0.5">Stream group messages to the dashboard in real-time</p>
             </div>
           </div>
-          <button type="button" title="Close" onClick={onClose} className="text-gray-500 hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-800">
+          <button type="button" title="Close" onClick={onClose}
+            className="text-gray-500 hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-800">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -90,12 +103,13 @@ function WaActivateModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="p-5 space-y-5">
+
           {/* Step indicators */}
           <div className="flex items-center gap-2">
             {STEPS.map(({ n, label }, i, arr) => (
               <div key={n} className="flex items-center gap-2 flex-1">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                  step > n  ? 'bg-teal-500 text-white'  :
+                  step > n  ? 'bg-teal-500 text-white'   :
                   step === n ? 'bg-indigo-500 text-white' :
                   'bg-gray-800 text-gray-500'
                 }`}>
@@ -109,26 +123,9 @@ function WaActivateModal({ onClose }: { onClose: () => void }) {
             ))}
           </div>
 
-          {/* Step 1: Auto-connecting (no terminal needed) */}
+          {/* ── Step 1: Scan QR ─────────────────────────────────────────── */}
           {step === 1 && (
-            <div className="flex flex-col items-center gap-4 py-4">
-              <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-              <div className="text-center">
-                <p className="text-sm text-gray-200 font-medium">
-                  {launching ? 'Starting WhatsApp service…' : 'Waiting for WhatsApp to connect…'}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {launching
-                    ? 'Launching service in the background'
-                    : 'If a previous session exists, it will reconnect automatically'}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Step 2: QR code or authenticated (post-scan) */}
-          {step === 2 && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {config.status === 'authenticated' ? (
                 <div className="flex items-center gap-3 text-sm text-teal-400 bg-teal-900/20 border border-teal-800/30 rounded-lg px-4 py-3">
                   <div className="w-4 h-4 border-2 border-teal-400 border-t-transparent rounded-full animate-spin shrink-0" />
@@ -137,61 +134,105 @@ function WaActivateModal({ onClose }: { onClose: () => void }) {
               ) : config.qr_code ? (
                 <>
                   <p className="text-sm text-gray-300 font-medium">Scan with WhatsApp on your phone:</p>
-                  <div className="flex gap-5 items-start">
+                  <div className="flex gap-5 items-center">
                     <img
                       src={config.qr_code}
                       alt="WhatsApp QR Code"
-                      className="w-44 h-44 rounded-xl border border-gray-700 bg-white p-1.5 shrink-0"
+                      className="w-48 h-48 rounded-xl border border-gray-700 bg-white p-2 shrink-0"
                     />
-                    <ol className="text-xs text-gray-400 space-y-2.5 list-decimal list-inside pt-1">
+                    <ol className="text-xs text-gray-400 space-y-3 list-decimal list-inside">
                       <li>Open <span className="text-white font-medium">WhatsApp</span> on your phone</li>
                       <li>Tap <span className="text-white font-medium">⋮ → Linked Devices</span></li>
                       <li>Tap <span className="text-white font-medium">Link a Device</span></li>
-                      <li>Point your camera at this QR code</li>
+                      <li>Point camera at the QR code</li>
                     </ol>
                   </div>
-                  <p className="text-xs text-gray-600">QR refreshes automatically every 30s. Keep this window open.</p>
+                  <p className="text-xs text-gray-600">QR refreshes automatically. Keep this window open.</p>
                 </>
               ) : (
-                <div className="flex items-center gap-2 text-xs text-gray-400">
-                  <div className="w-3 h-3 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
-                  <span>Loading QR code…</span>
+                <div className="flex flex-col items-center gap-4 py-6">
+                  <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                  <div className="text-center">
+                    <p className="text-sm text-gray-200 font-medium">Starting WhatsApp…</p>
+                    <p className="text-xs text-gray-500 mt-1">Generating QR code, this takes a few seconds</p>
+                  </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* Step 3: Connected */}
-          {step === 3 && (
+          {/* ── Step 2: Select Groups ────────────────────────────────────── */}
+          {step === 2 && (
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm text-teal-400 bg-teal-900/20 border border-teal-800/30 rounded-lg px-3 py-3">
+              <p className="text-sm text-gray-300 font-medium">
+                Select the groups to monitor
+                <span className="text-xs text-gray-500 font-normal ml-2">({config.groups.length} available)</span>
+              </p>
+              <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                {config.groups.map(g => {
+                  const checked = selected.has(g)
+                  const isSuggested = ['rumi', 'onboarding', 'cohort', 'torch bearer', 'steda', 'feedback'].some(k =>
+                    g.toLowerCase().includes(k)
+                  )
+                  return (
+                    <label key={g}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${
+                        checked ? 'bg-indigo-900/40 border border-indigo-700/50' : 'bg-gray-800/60 border border-transparent hover:bg-gray-800'
+                      }`}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleGroup(g)}
+                        className="w-4 h-4 rounded accent-indigo-500 shrink-0"
+                      />
+                      <span className={`text-xs flex-1 ${checked ? 'text-gray-100' : 'text-gray-400'}`}>{g}</span>
+                      {isSuggested && (
+                        <span className="text-xs text-indigo-400 bg-indigo-900/40 px-1.5 py-0.5 rounded font-medium">suggested</span>
+                      )}
+                    </label>
+                  )
+                })}
+              </div>
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-xs text-gray-500">{selected.size} group{selected.size !== 1 ? 's' : ''} selected</span>
+                <button
+                  type="button"
+                  disabled={selected.size === 0}
+                  onClick={() => setStep(3)}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs rounded-lg font-semibold transition-colors">
+                  Confirm →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Step 3: Confirm ──────────────────────────────────────────── */}
+          {step === 3 && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm text-teal-400 bg-teal-900/20 border border-teal-800/30 rounded-lg px-4 py-3">
                 <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse shrink-0" />
                 <span>Live stream connected — messages flowing in real-time</span>
               </div>
-              {config.groups.length > 0 && (
-                <div>
-                  <p className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">
-                    Monitored Groups ({config.groups.length})
-                  </p>
-                  <div className="space-y-1 max-h-40 overflow-y-auto">
-                    {config.groups.map(g => {
-                      const isMonitored = ['rumi onboarding', 'cohort', 'torch bearer'].some(k => g.toLowerCase().includes(k))
-                      return (
-                        <div key={g} className={`flex items-center gap-2 text-xs px-2 py-1.5 rounded ${isMonitored ? 'bg-teal-900/30 border border-teal-800/40' : 'bg-gray-800/50'}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isMonitored ? 'bg-teal-400' : 'bg-gray-600'}`} />
-                          <span className={isMonitored ? 'text-gray-200' : 'text-gray-500'}>{g}</span>
-                          {isMonitored && <span className="ml-auto text-teal-500 text-xs">monitored</span>}
-                        </div>
-                      )
-                    })}
-                  </div>
+              <div>
+                <p className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">
+                  Monitoring {selected.size} group{selected.size !== 1 ? 's' : ''}
+                </p>
+                <div className="space-y-1 max-h-40 overflow-y-auto">
+                  {Array.from(selected).map(g => (
+                    <div key={g} className="flex items-center gap-2 text-xs px-2 py-1.5 rounded bg-teal-900/30 border border-teal-800/40">
+                      <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
+                      <span className="text-gray-200">{g}</span>
+                    </div>
+                  ))}
                 </div>
-              )}
-              <button type="button" onClick={onClose} className="w-full py-2 bg-teal-700 hover:bg-teal-600 text-white text-sm rounded-lg font-medium transition-colors">
+              </div>
+              <button type="button" onClick={onClose}
+                className="w-full py-2 bg-teal-700 hover:bg-teal-600 text-white text-sm rounded-lg font-semibold transition-colors">
                 Done
               </button>
             </div>
           )}
+
         </div>
       </div>
     </div>
