@@ -100,6 +100,14 @@ function writeStatus(status, extra = {}) {
   console.log(`[status] ${status}`)
 }
 
+// ── Clean up stale Chrome lock files before initializing ──────────────────────
+const SESSION_DIR = path.join(__dirname, '.wwebjs_auth', 'session')
+const LOCK_FILES  = ['DevToolsActivePort', 'lockfile', 'SingletonLock', 'SingletonCookie']
+for (const f of LOCK_FILES) {
+  const fp = path.join(SESSION_DIR, f)
+  try { if (fs.existsSync(fp)) { fs.unlinkSync(fp); console.log(`[startup] Removed stale lock: ${f}`) } } catch {}
+}
+
 // ── WhatsApp client ───────────────────────────────────────────────────────────
 const client = new Client({
   authStrategy: new LocalAuth({ dataPath: path.join(__dirname, '.wwebjs_auth') }),
