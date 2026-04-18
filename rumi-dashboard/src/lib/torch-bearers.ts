@@ -34,6 +34,21 @@ export const TORCH_BEARER_NAMES: string[] = [
   'Zia ul Haque',
 ]
 
+// Designation → Grade level (Pakistan education system)
+export const GRADE_LEVEL: Record<string, string> = {
+  'PST':             'Grades 1–5',
+  'EST':             'Grades 6–8',
+  'HST':             'Grades 9–12',
+  'JEST':            'Grades 9–10',
+  'JST':             'Grades 9–10',
+  'English Teacher': 'Mixed',
+  'Teacher':         'Unspecified',
+}
+
+export function getGradeLevel(designation: string): string {
+  return GRADE_LEVEL[designation] ?? 'Unspecified'
+}
+
 // Phone numbers for members whose numbers appear in the Cohort chat
 // (added directly with +92 prefixes)
 export const TORCH_BEARER_PHONES: string[] = [

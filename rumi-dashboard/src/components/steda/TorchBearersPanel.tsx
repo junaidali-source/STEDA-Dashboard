@@ -10,13 +10,23 @@ interface UserRow {
   district: string
   designation: string
   gender: string
+  grade_level: string
   completed_sessions: number
   avg_score: number | null
   first_score: number | null
   latest_score: number | null
   improvement: number | null
+  avg_g1: number | null
+  avg_g2: number | null
+  avg_g3: number | null
+  avg_g4: number | null
+  avg_g5: number | null
   is_torch_bearer: boolean
   similarity_score?: number
+  wa_messages_total: number
+  wa_sentiment: { positive: number; question: number; issue: number; other: number }
+  wa_last_active: string | null
+  wa_active_days: number
 }
 
 interface Stats {
@@ -29,6 +39,7 @@ interface Stats {
   designation_breakdown: Record<string, number>
   gender_breakdown: Record<string, number>
   sessions_with_data: number
+  hots_avg: { g1: number | null; g2: number | null; g3: number | null; g4: number | null; g5: number | null }
 }
 
 interface TorchData {
@@ -36,6 +47,8 @@ interface TorchData {
   similar: UserRow[]
   stats: Stats
 }
+
+const HOTS_LABELS = ['HOTS Assess', 'Cog. Engage', 'Rig. Instruct', 'Reasoning', 'Climate']
 
 function ScoreBadge({ val, first, latest }: { val: number | null; first?: number | null; latest?: number | null }) {
   if (val == null) return <span className="text-gray-600 text-xs">—</span>
@@ -58,6 +71,35 @@ function ImproveBadge({ val }: { val: number | null }) {
   return <span className={`text-xs font-medium ${color}`}>{val > 0 ? '+' : ''}{val}%</span>
 }
 
+function HotsDots({ g1, g2, g3, g4, g5 }: { g1: number | null; g2: number | null; g3: number | null; g4: number | null; g5: number | null }) {
+  const vals = [g1, g2, g3, g4, g5]
+  const dotColor = (v: number | null) => {
+    if (v == null) return 'bg-gray-700'
+    if (v >= 60) return 'bg-teal-500'
+    if (v >= 40) return 'bg-amber-500'
+    return 'bg-red-500'
+  }
+  return (
+    <div className="flex gap-0.5 items-center" title={vals.map((v, i) => `${HOTS_LABELS[i]}: ${v ?? '—'}`).join('\n')}>
+      {vals.map((v, i) => (
+        <div key={i} className={`w-2 h-2 rounded-full ${dotColor(v)}`} />
+      ))}
+    </div>
+  )
+}
+
+function WaActivityBadge({ total, sentiment }: { total: number; sentiment: UserRow['wa_sentiment'] }) {
+  if (total === 0) return <span className="text-gray-600 text-xs">—</span>
+  const dom = Object.entries(sentiment).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'other'
+  const dotColor = dom === 'positive' ? 'bg-teal-500' : dom === 'question' ? 'bg-blue-500' : dom === 'issue' ? 'bg-red-500' : 'bg-gray-500'
+  return (
+    <span className="flex items-center gap-1">
+      <div className={`w-2 h-2 rounded-full ${dotColor}`} />
+      <span className="text-gray-300 text-xs">{total}</span>
+    </span>
+  )
+}
+
 function DistributionBar({ data }: { data: Record<string, number> | [string, number][] }) {
   const entries = Array.isArray(data) ? data : Object.entries(data)
   const total = entries.reduce((s, [, v]) => s + v, 0)
@@ -74,6 +116,20 @@ function DistributionBar({ data }: { data: Record<string, number> | [string, num
           <div className="text-xs text-gray-300 w-6 text-right">{count}</div>
         </div>
       ))}
+    </div>
+  )
+}
+
+function HotsBar({ label, val }: { label: string; val: number | null }) {
+  if (val == null) return null
+  const color = val >= 60 ? 'bg-teal-500' : val >= 40 ? 'bg-amber-500' : 'bg-red-500'
+  return (
+    <div className="flex items-center gap-2">
+      <div className="w-28 text-xs text-gray-400 truncate">{label}</div>
+      <div className="flex-1 bg-gray-800 rounded-full h-2 overflow-hidden">
+        <div className={`h-2 rounded-full ${color}`} style={{ width: `${val}%` }} />
+      </div>
+      <div className="text-xs text-gray-300 w-8 text-right">{val}%</div>
     </div>
   )
 }
@@ -158,12 +214,25 @@ export default function TorchBearersPanel({ queryStr }: { queryStr: string }) {
         ))}
       </div>
 
+      {/* HOTS legend (compact) */}
+      <div className="px-5 py-2 border-b border-gray-800/60 flex flex-wrap items-center gap-x-4 gap-y-1">
+        <span className="text-xs text-gray-500 shrink-0">HOTS key:</span>
+        {HOTS_LABELS.map((l, i) => (
+          <span key={l} className="text-xs text-gray-500">G{i+1} = {l}</span>
+        ))}
+        <span className="ml-auto flex items-center gap-2 text-xs text-gray-500">
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-teal-500 inline-block" /> ≥60%</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500 inline-block" /> 40–59%</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> &lt;40%</span>
+        </span>
+      </div>
+
       <div className="p-5 grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main table */}
         <div className="lg:col-span-2">
           {tab === 'members' ? (
             <>
-              <h3 className="text-xs font-semibold text-gray-400 mb-3 uppercase tracking-wider">Member Coaching Progress</h3>
+              <h3 className="text-xs font-semibold text-gray-400 mb-3 uppercase tracking-wider">Member Coaching + Activity Profile</h3>
               {torch.length === 0 ? (
                 <p className="text-sm text-gray-500">No matched Torch Bearers found in the database for this date range.</p>
               ) : (
@@ -172,9 +241,11 @@ export default function TorchBearersPanel({ queryStr }: { queryStr: string }) {
                     <thead>
                       <tr className="border-b border-gray-800 text-gray-400">
                         <th className="text-left py-2 pr-3 font-medium">Name</th>
-                        <th className="text-left py-2 pr-3 font-medium">District</th>
+                        <th className="text-left py-2 pr-3 font-medium">Grade</th>
                         <th className="text-right py-2 pr-3 font-medium">Sessions</th>
                         <th className="text-right py-2 pr-3 font-medium">Avg Score</th>
+                        <th className="text-center py-2 pr-3 font-medium">HOTS G1–G5</th>
+                        <th className="text-right py-2 pr-3 font-medium">WA Msgs</th>
                         <th className="text-right py-2 font-medium">Progress</th>
                       </tr>
                     </thead>
@@ -182,10 +253,13 @@ export default function TorchBearersPanel({ queryStr }: { queryStr: string }) {
                       {torch.map(t => (
                         <tr key={t.id} className="border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors">
                           <td className="py-2 pr-3">
-                            <div className="font-medium text-gray-200 truncate max-w-[120px]">{t.name || '—'}</div>
-                            <div className="text-gray-600 truncate max-w-[120px]">{t.school}</div>
+                            <div className="font-medium text-gray-200 truncate max-w-[110px]">{t.name || '—'}</div>
+                            <div className="text-gray-600 truncate max-w-[110px]">{t.school}</div>
                           </td>
-                          <td className="py-2 pr-3 text-gray-400 whitespace-nowrap">{t.district}</td>
+                          <td className="py-2 pr-3">
+                            <div className="text-gray-300 whitespace-nowrap">{t.designation !== '—' ? t.designation : '—'}</div>
+                            <div className="text-gray-600 text-xs whitespace-nowrap">{t.grade_level !== 'Unspecified' ? t.grade_level : ''}</div>
+                          </td>
                           <td className="py-2 pr-3 text-right">
                             {t.completed_sessions > 0
                               ? <span className="text-teal-400 font-semibold">{t.completed_sessions}</span>
@@ -194,6 +268,12 @@ export default function TorchBearersPanel({ queryStr }: { queryStr: string }) {
                           </td>
                           <td className="py-2 pr-3 text-right">
                             <ScoreBadge val={t.avg_score} first={t.first_score} latest={t.latest_score} />
+                          </td>
+                          <td className="py-2 pr-3 text-center">
+                            <HotsDots g1={t.avg_g1} g2={t.avg_g2} g3={t.avg_g3} g4={t.avg_g4} g5={t.avg_g5} />
+                          </td>
+                          <td className="py-2 pr-3 text-right">
+                            <WaActivityBadge total={t.wa_messages_total} sentiment={t.wa_sentiment} />
                           </td>
                           <td className="py-2 text-right">
                             <ImproveBadge val={t.improvement} />
@@ -211,7 +291,7 @@ export default function TorchBearersPanel({ queryStr }: { queryStr: string }) {
                 Teachers with Similar Profiles
               </h3>
               <p className="text-xs text-gray-500 mb-3">
-                STEDA teachers NOT in Cohort 1 who share similar district, designation, score range, and session count with the Torch Bearers — ranked by similarity.
+                STEDA teachers NOT in Cohort 1 who share similar district, designation, score range, and session count — ranked by similarity.
               </p>
               {similar.length === 0 ? (
                 <p className="text-sm text-gray-500">No similar teachers found.</p>
@@ -274,6 +354,19 @@ export default function TorchBearersPanel({ queryStr }: { queryStr: string }) {
             <h3 className="text-xs font-semibold text-amber-400/80 uppercase tracking-wider mb-2">Gender</h3>
             <DistributionBar data={stats.gender_breakdown} />
           </div>
+          {/* HOTS Profile */}
+          {stats.hots_avg && Object.values(stats.hots_avg).some(v => v != null) && (
+            <div>
+              <h3 className="text-xs font-semibold text-amber-400/80 uppercase tracking-wider mb-2">HOTS Profile (Cohort Avg)</h3>
+              <div className="flex flex-col gap-1.5">
+                <HotsBar label="G1 HOTS Assess" val={stats.hots_avg.g1} />
+                <HotsBar label="G2 Cog. Engage" val={stats.hots_avg.g2} />
+                <HotsBar label="G3 Rig. Instruct" val={stats.hots_avg.g3} />
+                <HotsBar label="G4 Reasoning" val={stats.hots_avg.g4} />
+                <HotsBar label="G5 Climate" val={stats.hots_avg.g5} />
+              </div>
+            </div>
+          )}
           <div className="bg-gray-800/40 rounded-lg p-3 border border-amber-800/20">
             <h3 className="text-xs font-semibold text-amber-400/80 uppercase tracking-wider mb-2">Cohort Profile</h3>
             <ul className="text-xs text-gray-400 space-y-1">

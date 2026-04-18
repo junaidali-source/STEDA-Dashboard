@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import TorchBearersPanel from '@/components/steda/TorchBearersPanel'
+import CohortMessagesPanel from '@/components/steda/CohortMessagesPanel'
 
 const PRESETS = [
   { label: 'All Time',   from: '',             to: '' },
@@ -77,8 +78,11 @@ export default function CohortsPage() {
         </div>
       </div>
 
-      {/* Cohort 1 — The Torch Bearers */}
+      {/* Cohort 1 — The Torch Bearers: coaching + profile */}
       <TorchBearersPanel queryStr={queryStr()} />
+
+      {/* Community message analysis — patterns by designation and grade */}
+      <CohortMessagesPanel queryStr={queryStr()} />
     </main>
   )
 }
