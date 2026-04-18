@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 
 interface Segment       { name: string; value: number; color: string }
@@ -19,6 +19,168 @@ interface Props {
   recentMessages?: RecentMessage[]
   dailyActivity?:  DailyActivity[]
   onRefresh?:     () => Promise<void>
+}
+
+type WaStatus = 'offline' | 'waiting_for_qr' | 'authenticated' | 'connected'
+
+interface WaConfig {
+  status: WaStatus
+  qr_code: string | null
+  groups: string[]
+  updated_at?: string
+}
+
+// ── WhatsApp Activation Modal ────────────────────────────────────────────────
+function WaActivateModal({ onClose }: { onClose: () => void }) {
+  const [config, setConfig] = useState<WaConfig>({ status: 'offline', qr_code: null, groups: [] })
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const poll = useCallback(async () => {
+    try {
+      const d: WaConfig = await fetch('/api/wa/config').then(r => r.json())
+      setConfig(d)
+      if (d.status === 'connected') {
+        if (intervalRef.current) clearInterval(intervalRef.current)
+      }
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    poll()
+    intervalRef.current = setInterval(poll, 3000)
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [poll])
+
+  const step =
+    config.status === 'connected'    ? 3 :
+    config.status === 'authenticated' ? 2 :
+    config.status === 'waiting_for_qr' && config.qr_code ? 2 : 1
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-lg shadow-2xl">
+        {/* Modal header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">📱</span>
+            <div>
+              <h3 className="text-sm font-bold text-white">Connect WhatsApp Live</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Enables real-time message streaming to the dashboard</p>
+            </div>
+          </div>
+          <button type="button" title="Close" onClick={onClose} className="text-gray-500 hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-800">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-5 space-y-5">
+          {/* Step indicators */}
+          <div className="flex items-center gap-2">
+            {[
+              { n: 1, label: 'Start service' },
+              { n: 2, label: 'Scan QR' },
+              { n: 3, label: 'Connected' },
+            ].map(({ n, label }, i, arr) => (
+              <div key={n} className="flex items-center gap-2 flex-1">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                  step > n ? 'bg-teal-500 text-white' :
+                  step === n ? 'bg-indigo-500 text-white' :
+                  'bg-gray-800 text-gray-500'
+                }`}>
+                  {step > n ? '✓' : n}
+                </div>
+                <span className={`text-xs ${step >= n ? 'text-gray-200' : 'text-gray-600'}`}>{label}</span>
+                {i < arr.length - 1 && <div className={`flex-1 h-px ${step > n ? 'bg-teal-500' : 'bg-gray-800'}`} />}
+              </div>
+            ))}
+          </div>
+
+          {/* Step 1: Start service */}
+          {step === 1 && (
+            <div className="space-y-3">
+              <p className="text-sm text-gray-300">Run the WhatsApp service on your local machine:</p>
+              <div className="bg-gray-950 border border-gray-700 rounded-lg p-3 font-mono text-xs text-teal-400">
+                <span className="text-gray-500">$</span> cd whatsapp-service<br />
+                <span className="text-gray-500">$</span> npm start
+              </div>
+              <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-900/20 border border-amber-800/30 rounded-lg px-3 py-2">
+                <span>⏳</span>
+                <span>Waiting for service to start… (checking every 3s)</span>
+                <div className="ml-auto w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: QR code */}
+          {step === 2 && (
+            <div className="space-y-3">
+              {config.status === 'authenticated' ? (
+                <div className="flex items-center gap-2 text-sm text-teal-400 bg-teal-900/20 border border-teal-800/30 rounded-lg px-3 py-3">
+                  <div className="w-4 h-4 border-2 border-teal-400 border-t-transparent rounded-full animate-spin" />
+                  <span>QR scanned — loading your groups…</span>
+                </div>
+              ) : config.qr_code ? (
+                <>
+                  <p className="text-sm text-gray-300">Scan with WhatsApp on your phone:</p>
+                  <div className="flex gap-4 items-start">
+                    <img
+                      src={config.qr_code}
+                      alt="WhatsApp QR Code"
+                      className="w-40 h-40 rounded-lg border border-gray-700 bg-white p-1 shrink-0"
+                    />
+                    <ol className="text-xs text-gray-400 space-y-2 list-decimal list-inside pt-1">
+                      <li>Open <span className="text-white">WhatsApp</span> on your phone</li>
+                      <li>Tap <span className="text-white">⋮ → Linked Devices</span></li>
+                      <li>Tap <span className="text-white">Link a Device</span></li>
+                      <li>Point camera at this QR code</li>
+                    </ol>
+                  </div>
+                  <p className="text-xs text-gray-600">QR code refreshes automatically. Keep this window open.</p>
+                </>
+              ) : (
+                <div className="flex items-center gap-2 text-xs text-gray-400">
+                  <div className="w-3 h-3 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
+                  <span>Waiting for QR code from service…</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 3: Connected */}
+          {step === 3 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm text-teal-400 bg-teal-900/20 border border-teal-800/30 rounded-lg px-3 py-3">
+                <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse shrink-0" />
+                <span>Live stream connected — messages flowing in real-time</span>
+              </div>
+              {config.groups.length > 0 && (
+                <div>
+                  <p className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Monitored Groups ({config.groups.length})</p>
+                  <div className="space-y-1 max-h-40 overflow-y-auto">
+                    {config.groups.map(g => {
+                      const isMonitored = ['rumi onboarding', 'cohort', 'torch bearer'].some(k => g.toLowerCase().includes(k))
+                      return (
+                        <div key={g} className={`flex items-center gap-2 text-xs px-2 py-1.5 rounded ${isMonitored ? 'bg-teal-900/30 border border-teal-800/40' : 'bg-gray-800/50'}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isMonitored ? 'bg-teal-400' : 'bg-gray-600'}`} />
+                          <span className={isMonitored ? 'text-gray-200' : 'text-gray-500'}>{g}</span>
+                          {isMonitored && <span className="ml-auto text-teal-500 text-xs">monitored</span>}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+              <button type="button" onClick={onClose} className="w-full py-2 bg-teal-700 hover:bg-teal-600 text-white text-sm rounded-lg font-medium transition-colors">
+                Done
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 const SENTIMENT_COLORS: Record<string, string> = {
@@ -44,6 +206,7 @@ export default function SentimentDonut({
   totalCommunity, lastUpdated, liveConnected, recentMessages, dailyActivity, onRefresh,
 }: Props) {
   const [refreshing, setRefreshing] = useState(false)
+  const [showActivate, setShowActivate] = useState(false)
   const relativeTime = lastUpdated ? formatRelativeTime(lastUpdated) : null
 
   async function handleRefresh() {
@@ -81,18 +244,21 @@ export default function SentimentDonut({
               {refreshing ? 'Refreshing…' : 'Refresh'}
             </button>
           )}
-          {/* Live service connection badge */}
+          {/* Live service connection badge — clickable to open activation modal */}
           {liveConnected ? (
-            <span className="flex items-center gap-1.5 text-xs text-green-400 bg-green-900/40 px-2 py-1 rounded-full">
+            <button type="button" onClick={() => setShowActivate(true)}
+              className="flex items-center gap-1.5 text-xs text-green-400 bg-green-900/40 px-2 py-1 rounded-full hover:bg-green-900/60 transition-colors">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
               Live stream · connected
-            </span>
+            </button>
           ) : (
-            <span className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-900/30 px-2 py-1 rounded-full">
+            <button type="button" onClick={() => setShowActivate(true)}
+              className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-900/30 px-2 py-1 rounded-full hover:bg-amber-900/50 transition-colors">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-              File mode · run whatsapp-service for live
-            </span>
+              File mode · activate live
+            </button>
           )}
+          {showActivate && <WaActivateModal onClose={() => setShowActivate(false)} />}
           {relativeTime && (
             <span className="text-xs text-teal-400 bg-teal-900/40 px-2 py-1 rounded-full">
               updated {relativeTime}

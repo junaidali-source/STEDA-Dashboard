@@ -11,7 +11,8 @@
 
 require('dotenv').config({ path: '../.env' })
 const { Client, LocalAuth } = require('whatsapp-web.js')
-const qrcode  = require('qrcode-terminal')
+const qrcodeTerm = require('qrcode-terminal')
+const qrcodeImg  = require('qrcode')
 const { createClient } = require('@supabase/supabase-js')
 const fs      = require('fs')
 const path    = require('path')
@@ -111,18 +112,28 @@ const client = new Client({
   },
 })
 
-client.on('qr', (qr) => {
+client.on('qr', async (qr) => {
   console.log('\n══════════════════════════════════════════════')
   console.log('  Scan this QR code with WhatsApp on your phone')
   console.log('  (Settings → Linked Devices → Link a Device)')
+  console.log('  QR code is also visible on the dashboard.')
   console.log('══════════════════════════════════════════════\n')
-  qrcode.generate(qr, { small: true })
+  qrcodeTerm.generate(qr, { small: true })
   writeStatus('waiting_for_qr')
+  // Relay QR to dashboard via Supabase
+  try {
+    const dataUrl = await qrcodeImg.toDataURL(qr, { errorCorrectionLevel: 'M', margin: 2, width: 256 })
+    await setWaStatus('waiting_for_qr', { qr_code: dataUrl, groups: null })
+  } catch (e) {
+    console.error('[qr] Failed to relay QR to Supabase:', e.message)
+  }
 })
 
-client.on('authenticated', () => {
+client.on('authenticated', async () => {
   console.log('[auth] Authenticated — session saved.')
   writeStatus('authenticated')
+  // Clear QR from dashboard once authenticated
+  await setWaStatus('authenticated', { qr_code: null })
 })
 
 client.on('auth_failure', (msg) => {
@@ -131,7 +142,18 @@ client.on('auth_failure', (msg) => {
 })
 
 async function pingHeartbeat() {
-  await supabase.from('wa_heartbeat').upsert({ id: 1, updated_at: new Date().toISOString() }, { onConflict: 'id' })
+  await supabase.from('wa_heartbeat').upsert({ id: 1, updated_at: new Date().toISOString(), wa_status: 'connected' }, { onConflict: 'id' })
+}
+
+async function setWaStatus(status, extra = {}) {
+  try {
+    await supabase.from('wa_heartbeat').upsert(
+      { id: 1, wa_status: status, updated_at: new Date().toISOString(), ...extra },
+      { onConflict: 'id' }
+    )
+  } catch (e) {
+    console.error('[wa_status] Failed to update status:', e.message)
+  }
 }
 
 // ── Backfill: fetch full group history and upsert to Supabase ────────────────
@@ -182,6 +204,10 @@ client.on('ready', async () => {
     groups.forEach(g => console.log(`  • "${g.name}"`))
     console.log()
 
+    // Write connected status + group list to Supabase for dashboard
+    const groupNames = groups.map(g => g.name)
+    await setWaStatus('connected', { qr_code: null, groups: groupNames })
+
     // Backfill history for all target groups
     const targets = groups.filter(g =>
       TARGET_GROUPS.some(t => g.name.toLowerCase().includes(t))
@@ -197,9 +223,10 @@ client.on('ready', async () => {
   }
 })
 
-client.on('disconnected', (reason) => {
+client.on('disconnected', async (reason) => {
   console.log('[disconnected]', reason)
   writeStatus('disconnected', { reason })
+  await setWaStatus('disconnected', { qr_code: null })
 })
 
 const SAFE_TYPES = new Set(['chat', 'image', 'video', 'audio', 'document', 'sticker'])

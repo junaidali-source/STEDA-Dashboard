@@ -10,6 +10,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.99.2",
     "dotenv": "^16.4.5",
+    "qrcode": "^1.5.4",
     "qrcode-terminal": "^0.12.0",
     "whatsapp-web.js": "^1.26.1-alpha.3"
   }
