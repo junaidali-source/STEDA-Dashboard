@@ -33,6 +33,7 @@ interface WaConfig {
 // ── WhatsApp Activation Modal ────────────────────────────────────────────────
 function WaActivateModal({ onClose }: { onClose: () => void }) {
   const [config, setConfig] = useState<WaConfig>({ status: 'offline', qr_code: null, groups: [] })
+  const [launching, setLaunching] = useState(true)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const poll = useCallback(async () => {
@@ -46,15 +47,28 @@ function WaActivateModal({ onClose }: { onClose: () => void }) {
   }, [])
 
   useEffect(() => {
+    // Auto-start whatsapp-service in background (no-op on Vercel)
+    fetch('/api/wa/launch', { method: 'POST' })
+      .catch(() => {})
+      .finally(() => setLaunching(false))
+
+    // Poll Supabase for QR / connection status
     poll()
     intervalRef.current = setInterval(poll, 3000)
     return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
   }, [poll])
 
+  // step: 1 = waiting/connecting, 2 = QR shown or authenticated, 3 = connected
   const step =
-    config.status === 'connected'    ? 3 :
-    config.status === 'authenticated' ? 2 :
-    config.status === 'waiting_for_qr' && config.qr_code ? 2 : 1
+    config.status === 'connected'                             ? 3 :
+    config.status === 'authenticated'                         ? 2 :
+    config.status === 'waiting_for_qr' && config.qr_code     ? 2 : 1
+
+  const STEPS = [
+    { n: 1, label: 'Connecting' },
+    { n: 2, label: 'Scan QR'    },
+    { n: 3, label: 'Connected'  },
+  ]
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -78,71 +92,70 @@ function WaActivateModal({ onClose }: { onClose: () => void }) {
         <div className="p-5 space-y-5">
           {/* Step indicators */}
           <div className="flex items-center gap-2">
-            {[
-              { n: 1, label: 'Start service' },
-              { n: 2, label: 'Scan QR' },
-              { n: 3, label: 'Connected' },
-            ].map(({ n, label }, i, arr) => (
+            {STEPS.map(({ n, label }, i, arr) => (
               <div key={n} className="flex items-center gap-2 flex-1">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                  step > n ? 'bg-teal-500 text-white' :
+                  step > n  ? 'bg-teal-500 text-white'  :
                   step === n ? 'bg-indigo-500 text-white' :
                   'bg-gray-800 text-gray-500'
                 }`}>
                   {step > n ? '✓' : n}
                 </div>
                 <span className={`text-xs ${step >= n ? 'text-gray-200' : 'text-gray-600'}`}>{label}</span>
-                {i < arr.length - 1 && <div className={`flex-1 h-px ${step > n ? 'bg-teal-500' : 'bg-gray-800'}`} />}
+                {i < arr.length - 1 && (
+                  <div className={`flex-1 h-px ${step > n ? 'bg-teal-500' : 'bg-gray-800'}`} />
+                )}
               </div>
             ))}
           </div>
 
-          {/* Step 1: Start service */}
+          {/* Step 1: Auto-connecting (no terminal needed) */}
           {step === 1 && (
-            <div className="space-y-3">
-              <p className="text-sm text-gray-300">Run the WhatsApp service on your local machine:</p>
-              <div className="bg-gray-950 border border-gray-700 rounded-lg p-3 font-mono text-xs text-teal-400">
-                <span className="text-gray-500">$</span> cd whatsapp-service<br />
-                <span className="text-gray-500">$</span> npm start
-              </div>
-              <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-900/20 border border-amber-800/30 rounded-lg px-3 py-2">
-                <span>⏳</span>
-                <span>Waiting for service to start… (checking every 3s)</span>
-                <div className="ml-auto w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+            <div className="flex flex-col items-center gap-4 py-4">
+              <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+              <div className="text-center">
+                <p className="text-sm text-gray-200 font-medium">
+                  {launching ? 'Starting WhatsApp service…' : 'Waiting for WhatsApp to connect…'}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {launching
+                    ? 'Launching service in the background'
+                    : 'If a previous session exists, it will reconnect automatically'}
+                </p>
               </div>
             </div>
           )}
 
-          {/* Step 2: QR code */}
+          {/* Step 2: QR code or authenticated (post-scan) */}
           {step === 2 && (
             <div className="space-y-3">
               {config.status === 'authenticated' ? (
-                <div className="flex items-center gap-2 text-sm text-teal-400 bg-teal-900/20 border border-teal-800/30 rounded-lg px-3 py-3">
-                  <div className="w-4 h-4 border-2 border-teal-400 border-t-transparent rounded-full animate-spin" />
+                <div className="flex items-center gap-3 text-sm text-teal-400 bg-teal-900/20 border border-teal-800/30 rounded-lg px-4 py-3">
+                  <div className="w-4 h-4 border-2 border-teal-400 border-t-transparent rounded-full animate-spin shrink-0" />
                   <span>QR scanned — loading your groups…</span>
                 </div>
               ) : config.qr_code ? (
                 <>
-                  <p className="text-sm text-gray-300">Scan with WhatsApp on your phone:</p>
-                  <div className="flex gap-4 items-start">
+                  <p className="text-sm text-gray-300 font-medium">Scan with WhatsApp on your phone:</p>
+                  <div className="flex gap-5 items-start">
                     <img
                       src={config.qr_code}
                       alt="WhatsApp QR Code"
-                      className="w-40 h-40 rounded-lg border border-gray-700 bg-white p-1 shrink-0"
+                      className="w-44 h-44 rounded-xl border border-gray-700 bg-white p-1.5 shrink-0"
                     />
-                    <ol className="text-xs text-gray-400 space-y-2 list-decimal list-inside pt-1">
-                      <li>Open <span className="text-white">WhatsApp</span> on your phone</li>
-                      <li>Tap <span className="text-white">⋮ → Linked Devices</span></li>
-                      <li>Tap <span className="text-white">Link a Device</span></li>
-                      <li>Point camera at this QR code</li>
+                    <ol className="text-xs text-gray-400 space-y-2.5 list-decimal list-inside pt-1">
+                      <li>Open <span className="text-white font-medium">WhatsApp</span> on your phone</li>
+                      <li>Tap <span className="text-white font-medium">⋮ → Linked Devices</span></li>
+                      <li>Tap <span className="text-white font-medium">Link a Device</span></li>
+                      <li>Point your camera at this QR code</li>
                     </ol>
                   </div>
-                  <p className="text-xs text-gray-600">QR code refreshes automatically. Keep this window open.</p>
+                  <p className="text-xs text-gray-600">QR refreshes automatically every 30s. Keep this window open.</p>
                 </>
               ) : (
                 <div className="flex items-center gap-2 text-xs text-gray-400">
                   <div className="w-3 h-3 border-2 border-gray-500 border-t-transparent rounded-full animate-spin" />
-                  <span>Waiting for QR code from service…</span>
+                  <span>Loading QR code…</span>
                 </div>
               )}
             </div>
@@ -157,7 +170,9 @@ function WaActivateModal({ onClose }: { onClose: () => void }) {
               </div>
               {config.groups.length > 0 && (
                 <div>
-                  <p className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">Monitored Groups ({config.groups.length})</p>
+                  <p className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wider">
+                    Monitored Groups ({config.groups.length})
+                  </p>
                   <div className="space-y-1 max-h-40 overflow-y-auto">
                     {config.groups.map(g => {
                       const isMonitored = ['rumi onboarding', 'cohort', 'torch bearer'].some(k => g.toLowerCase().includes(k))
