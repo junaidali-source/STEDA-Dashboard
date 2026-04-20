@@ -113,9 +113,11 @@ const client = new Client({
   authStrategy: new LocalAuth({ dataPath: path.join(__dirname, '.wwebjs_auth') }),
   puppeteer: {
     headless: true,
+    timeout: 60000,
     args: [
       '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
       '--disable-accelerated-2d-canvas', '--no-first-run', '--no-zygote', '--disable-gpu',
+      '--disable-extensions', '--no-default-browser-check', '--disable-sync',
     ],
   },
 })
@@ -130,10 +132,14 @@ client.on('qr', async (qr) => {
   writeStatus('waiting_for_qr')
   // Relay QR to dashboard via Supabase
   try {
+    console.log('[qr] Generating data URL from QR string...')
     const dataUrl = await qrcodeImg.toDataURL(qr, { errorCorrectionLevel: 'M', margin: 2, width: 256 })
+    console.log(`[qr] Generated data URL (${dataUrl.length} bytes), writing to Supabase...`)
     await setWaStatus('waiting_for_qr', { qr_code: dataUrl, groups: null })
+    console.log('[qr] Successfully relayed QR to dashboard')
   } catch (e) {
-    console.error('[qr] Failed to relay QR to Supabase:', e.message)
+    console.error('[qr] Error relaying QR to Supabase:', e.message)
+    console.error('[qr] Stack:', e.stack)
   }
 })
 
@@ -292,16 +298,38 @@ client.on('message_create', async (msg) => {
 })
 
 // ── Start ─────────────────────────────────────────────────────────────────────
-console.log('Starting WhatsApp service for STEDA dashboard…')
-console.log(`Target groups: ${TARGET_GROUPS.map(g => `"${g}"`).join(', ')}`)
-console.log(`Supabase: ${process.env.SUPABASE_URL}`)
-console.log()
+async function start() {
+  console.log('Starting WhatsApp service for STEDA dashboard…')
+  console.log(`Target groups: ${TARGET_GROUPS.map(g => `"${g}"`).join(', ')}`)
+  console.log(`Supabase: ${process.env.SUPABASE_URL}`)
+  console.log()
 
-writeStatus('starting')
-ensureTable()
-  .then(() => client.initialize())
-  .catch(e => {
+  writeStatus('starting')
+  try {
+    await ensureTable()
+  } catch (e) {
     console.error('[db] Could not connect to database:', e.message)
     console.log('[db] Starting without DB — local file only')
-    client.initialize()
-  })
+  }
+
+  // Retry browser initialization up to 3 times
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      console.log(`[browser] Initializing (attempt ${attempt}/3)…`)
+      await client.initialize()
+      return
+    } catch (e) {
+      console.error(`[browser] Initialization failed (attempt ${attempt}): ${e.message}`)
+      if (attempt < 3) {
+        console.log(`[browser] Retrying in 5 seconds…`)
+        await new Promise(r => setTimeout(r, 5000))
+      } else {
+        console.error('[browser] Failed to initialize after 3 attempts. Check system resources.')
+        writeStatus('failed', { error: 'Browser launch failed: ' + e.message })
+        process.exit(1)
+      }
+    }
+  }
+}
+
+start()
