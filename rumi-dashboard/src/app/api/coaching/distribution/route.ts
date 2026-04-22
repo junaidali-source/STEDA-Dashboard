@@ -31,11 +31,12 @@ export async function GET(req: NextRequest) {
       const res = await pool.query(
         `SELECT session_count, COUNT(*) AS user_count
          FROM (
-           SELECT cs.user_id, COUNT(cs.id) AS session_count
+           SELECT u.id, COUNT(cs.id) AS session_count
            FROM users u
            LEFT JOIN coaching_sessions cs ON cs.user_id = u.id ${JOIN_DC('$2', '$3')}
            WHERE u.id = ANY($1::uuid[])
            GROUP BY u.id
+           HAVING COUNT(cs.id) > 0
          ) sub
          GROUP BY session_count
          ORDER BY session_count`,
@@ -61,11 +62,12 @@ export async function GET(req: NextRequest) {
       const res = await pool.query(
         `SELECT session_count, COUNT(*) AS user_count
          FROM (
-           SELECT cs.user_id, COUNT(cs.id) AS session_count
+           SELECT u.id, COUNT(cs.id) AS session_count
            FROM users u
            LEFT JOIN coaching_sessions cs ON cs.user_id = u.id ${JOIN_DC('$2', '$3')}
            WHERE u.id = ANY($1::uuid[])
            GROUP BY u.id
+           HAVING COUNT(cs.id) > 0
          ) sub
          GROUP BY session_count
          ORDER BY session_count`,
@@ -77,11 +79,11 @@ export async function GET(req: NextRequest) {
         users: parseInt(r.user_count),
       }))
     } else {
-      // Global admin: all users (including those with 0 sessions)
+      // Global admin: all users with at least 1 session
       const res = await pool.query(
         `SELECT session_count, COUNT(*) AS user_count
          FROM (
-           SELECT cs.user_id, COUNT(cs.id) AS session_count
+           SELECT u.id, COUNT(cs.id) AS session_count
            FROM users u
            LEFT JOIN coaching_sessions cs ON cs.user_id = u.id ${JOIN_DC('$1', '$2')}
            WHERE COALESCE(u.is_test_user,false)=false
