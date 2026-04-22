@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef, type ReactNode } from 'react'
 import { HOTS_OBSERVATION_INDICATORS } from '@/lib/hots-rubric'
+import CoachingDistributionChart from './CoachingDistributionChart'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Partner { id: string; name: string; teacher_count: number }
@@ -343,6 +344,11 @@ export default function CoachingDashboard({ role }: { role: string }) {
               </div>
             </section>
           )}
+
+          <section>
+            <SectionLabel>Distribution</SectionLabel>
+            <CoachingDistributionChart role={role} from={from} to={to} partner={partner} />
+          </section>
 
           <HotsIndicatorsLegend />
 
