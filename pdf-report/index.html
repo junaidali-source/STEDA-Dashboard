@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>STEDA Onboarding Report — March 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: #e5e7eb; }
+
+  @page { size: A4; margin: 0; }
+
+  .page {
+    width: 210mm;
+    height: 297mm;
+    position: relative;
+    overflow: hidden;
+    background: white;
+    break-after: page;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  @media print {
+    body { background: none; }
+    .page { break-after: page; }
+  }
+
+  /* ── Design tokens ── */
+  :root {
+    --teal:   #0F766E;
+    --teal-d: #134E4A;
+    --teal-l: #CCFBF1;
+    --teal-m: #14B8A6;
+    --indigo: #4338CA;
+    --indigo-l: #E0E7FF;
+    --navy:  #0F172A;
+    --slate: #1E293B;
+    --muted: #64748B;
+    --border:#E2E8F0;
+    --surface:#F8FAFC;
+    --amber: #D97706;
+    --green: #059669;
+    --purple:#7C3AED;
+    --pink:  #DB2777;
+    --orange:#EA580C;
+    --blue:  #2563EB;
+  }
+
+  .footer {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px;
+    background: #F1F5F9;
+    border-top: 1px solid var(--border);
+    font-size: 7px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+
+  .section-tag {
+    display: inline-block;
+    font-size: 7px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 4px;
+  }
+
+  .kpi-card {
+    background: white;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    padding: 14px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+
+  .bar-outer {
+    height: 7px;
+    background: #E2E8F0;
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .bar-inner {
+    height: 100%;
+    border-radius: 99px;
+  }
+
+  .quote-card {
+    border-radius: 10px;
+    padding: 14px 16px 14px 20px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: white;
+  }
+  .quote-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+  }
+
+  .avatar {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: white;
+    flex-shrink: 0;
+  }
+
+  .finding-card {
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    padding: 14px;
+    background: white;
+    position: relative;
+  }
+
+  .number-badge {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 800;
+    color: white;
+    flex-shrink: 0;
+  }
+
+  .action-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 8.5px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 99px;
+    margin-top: 8px;
+  }
+
+  .deco-circle {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0.07;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 1 — COVER
+════════════════════════════════════════════════════ -->
+<div class="page" style="background: var(--navy);">
+
+  <!-- Top teal band -->
+  <div style="height:5px; background: linear-gradient(90deg, var(--teal-m), var(--indigo));"></div>
+
+  <!-- Amber accent line -->
+  <div style="height:2px; background: var(--amber); margin-top: 1px;"></div>
+
+  <!-- Decorative circles -->
+  <div class="deco-circle" style="width:320px;height:320px;background:var(--teal);top:-80px;right:-80px;"></div>
+  <div class="deco-circle" style="width:200px;height:200px;background:var(--indigo);bottom:60px;left:-60px;"></div>
+  <div class="deco-circle" style="width:120px;height:120px;background:var(--amber);bottom:200px;right:30px;"></div>
+
+  <!-- Content wrapper -->
+  <div style="padding: 60px 48px; height: calc(297mm - 28px); display:flex; flex-direction:column; justify-content: space-between; position:relative; z-index:1;">
+
+    <!-- Top meta row -->
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div>
+        <div style="font-size:8px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:var(--teal-m);">STEDA · Sindh Teacher Education &amp; Development Authority</div>
+        <div style="font-size:8px; color:#94A3B8; margin-top:4px; letter-spacing:0.06em;">In Partnership with Taleemabad / Rumi Digital Pilot Program</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:8px; color:#94A3B8; letter-spacing:0.06em;">March 18, 2026</div>
+        <div style="font-size:8px; color:#94A3B8; margin-top:2px; letter-spacing:0.06em;">Confidential</div>
+      </div>
+    </div>
+
+    <!-- Hero typography -->
+    <div>
+      <div style="font-size:11px; font-weight:600; letter-spacing:0.22em; text-transform:uppercase; color:var(--teal-m); margin-bottom:20px;">TEACHER ONBOARDING REPORT</div>
+      <div style="font-size:64px; font-weight:900; line-height:1; color:white; letter-spacing:-2px;">
+        <div>Teacher</div>
+        <div style="color:var(--teal-m);">Onboarding</div>
+        <div>Report</div>
+      </div>
+      <div style="width:80px; height:3px; background:var(--amber); margin: 20px 0;"></div>
+      <div style="font-size:13px; font-weight:400; color:#CBD5E1; max-width:320px; line-height:1.6;">
+        Digital activation analysis of 1,349 enrolled teachers across Sindh — platform adoption, community engagement, and feature utilisation metrics.
+      </div>
+    </div>
+
+    <!-- Bottom KPI strip -->
+    <div style="background:#1E293B; border-radius:12px; padding:20px 24px; border:1px solid #334155;">
+      <div style="font-size:7px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#64748B; margin-bottom:14px;">Headline Metrics</div>
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px;">
+        <!-- KPI 1 -->
+        <div>
+          <div style="font-size:28px; font-weight:800; color:var(--teal-m); line-height:1;">67.8%</div>
+          <div style="font-size:9px; font-weight:500; color:#94A3B8; margin-top:3px; letter-spacing:0.04em;">Platform Activation Rate</div>
+        </div>
+        <!-- KPI 2 -->
+        <div>
+          <div style="font-size:28px; font-weight:800; color:white; line-height:1;">915</div>
+          <div style="font-size:9px; font-weight:500; color:#94A3B8; margin-top:3px; letter-spacing:0.04em;">Teachers Activated</div>
+        </div>
+        <!-- KPI 3 -->
+        <div>
+          <div style="font-size:28px; font-weight:800; color:var(--amber); line-height:1;">551</div>
+          <div style="font-size:9px; font-weight:500; color:#94A3B8; margin-top:3px; letter-spacing:0.04em;">Community Members</div>
+        </div>
+        <!-- KPI 4 -->
+        <div>
+          <div style="font-size:28px; font-weight:800; color:#A5B4FC; line-height:1;">395</div>
+          <div style="font-size:9px; font-weight:500; color:#94A3B8; margin-top:3px; letter-spacing:0.04em;">LP Feature Users</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div style="position:absolute;bottom:0;left:0;right:0;height:28px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:#0B1120;border-top:1px solid #1E293B;font-size:7px;color:#475569;letter-spacing:0.04em;">
+    <span>Confidential — For the Secretary of Education, Government of Sindh</span>
+    <span>Page 1 of 6</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 2 — KPI DASHBOARD
+════════════════════════════════════════════════════ -->
+<div class="page">
+  <!-- Teal header band -->
+  <div style="height:48px; background:linear-gradient(135deg, var(--teal-d), var(--teal)); display:flex; align-items:center; padding: 0 32px; gap:12px;">
+    <div style="width:3px; height:24px; background:var(--amber); border-radius:2px;"></div>
+    <div>
+      <div style="font-size:7px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase; color:var(--teal-l); opacity:0.8;">Overview</div>
+      <div style="font-size:14px; font-weight:700; color:white; margin-top:1px;">KPI Dashboard</div>
+    </div>
+    <div style="margin-left:auto; font-size:7px; color:rgba(255,255,255,0.5);">March 2026 · Sindh Pilot</div>
+  </div>
+
+  <div style="padding:18px 28px 36px;">
+
+    <!-- 8 KPI cards grid -->
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:18px;">
+
+      <!-- Card 1 -->
+      <div class="kpi-card" style="border-top-color:var(--teal);">
+        <div style="font-size:24px; font-weight:800; color:var(--teal); line-height:1;">1,349</div>
+        <div style="font-size:8.5px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); margin-top:4px;">Teachers Enrolled</div>
+        <div style="font-size:8.5px; color:#94A3B8; margin-top:6px;">CSV pilot list</div>
+      </div>
+
+      <!-- Card 2 -->
+      <div class="kpi-card" style="border-top-color:var(--green);">
+        <div style="font-size:24px; font-weight:800; color:var(--green); line-height:1;">915</div>
+        <div style="font-size:8.5px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); margin-top:4px;">Activated (DB)</div>
+        <div style="margin-top:8px;" class="bar-outer"><div class="bar-inner" style="width:67.8%;background:var(--green);"></div></div>
+        <div style="font-size:7px; color:var(--green); font-weight:600; margin-top:4px;">67.8% rate</div>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="kpi-card" style="border-top-color:var(--amber);">
+        <div style="font-size:24px; font-weight:800; color:var(--amber); line-height:1;">434</div>
+        <div style="font-size:8.5px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); margin-top:4px;">Not Yet Joined</div>
+        <div style="margin-top:8px;" class="bar-outer"><div class="bar-inner" style="width:32.2%;background:var(--amber);"></div></div>
+        <div style="font-size:7px; color:var(--amber); font-weight:600; margin-top:4px;">32.2% gap</div>
+      </div>
+
+      <!-- Card 4 -->
+      <div class="kpi-card" style="border-top-color:var(--indigo);">
+        <div style="font-size:24px; font-weight:800; color:var(--indigo); line-height:1;">551</div>
+        <div style="font-size:8.5px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); margin-top:4px;">Community Members</div>
+        <div style="font-size:8.5px; color:#94A3B8; margin-top:6px;">WhatsApp group</div>
+      </div>
+
+      <!-- Card 5 -->
+      <div class="kpi-card" style="border-top-color:var(--blue);">
+        <div style="font-size:24px; font-weight:800; color:var(--blue); line-height:1;">395</div>
+        <div style="font-size:8.5px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); margin-top:4px;">Lesson Plan Users</div>
+        <div style="margin-top:8px;" class="bar-outer"><div class="bar-inner" style="width:43.2%;background:var(--blue);"></div></div>
+        <div style="font-size:7px; color:var(--blue); font-weight:600; margin-top:4px;">43.2% of enrolled</div>
+      </div>
+
+      <!-- Card 6 -->
+      <div class="kpi-card" style="border-top-color:var(--blue);">
+        <div style="font-size:24px; font-weight:800; color:var(--blue); line-height:1;">975</div>
+        <div style="font-size:8.5px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); margin-top:4px;">LP Requests</div>
+        <div style="font-size:8.5px; color:#94A3B8; margin-top:6px;">957 completed · 98.2%</div>
+      </div>
+
+      <!-- Card 7 -->
+      <div class="kpi-card" style="border-top-color:var(--purple);">
+        <div style="font-size:24px; font-weight:800; color:var(--purple); line-height:1;">2.47×</div>
+        <div style="font-size:8.5px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); margin-top:4px;">Avg LP / User</div>
+        <div style="font-size:8.5px; color:#94A3B8; margin-top:6px;">975 req ÷ 395 users</div>
+      </div>
+
+      <!-- Card 8 -->
+      <div class="kpi-card" style="border-top-color:var(--pink);">
+        <div style="font-size:24px; font-weight:800; color:var(--pink); line-height:1;">~20</div>
+        <div style="font-size:8.5px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); margin-top:4px;">Positive Senders</div>
+        <div style="font-size:8.5px; color:#94A3B8; margin-top:6px;">Community sentiment</div>
+      </div>
+
+    </div>
+
+    <!-- Activation funnel -->
+    <div style="background:var(--surface); border-radius:10px; border:1px solid var(--border); padding:16px 20px;">
+      <div style="font-size:9.5px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:12px;">Activation Funnel</div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+
+        <!-- Funnel step 1 -->
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="font-size:9px; color:var(--muted); width:140px; flex-shrink:0;">Enrolled in Pilot Program</div>
+          <div style="flex:1; height:22px; background:var(--teal); border-radius:4px; display:flex; align-items:center; padding: 0 10px;">
+            <span style="font-size:10px; font-weight:700; color:white;">1,349</span>
+            <span style="font-size:8.5px; color:rgba(255,255,255,0.8); margin-left:auto;">100%</span>
+          </div>
+        </div>
+
+        <!-- Funnel step 2 -->
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="font-size:9px; color:var(--muted); width:140px; flex-shrink:0;">Joined WhatsApp Community</div>
+          <div style="flex:1; height:22px; border-radius:4px; display:flex; align-items:center; padding: 0 10px; overflow:hidden; background:#E2E8F0; position:relative;">
+            <div style="position:absolute;left:0;top:0;bottom:0;width:40.8%;background:var(--indigo);"></div>
+            <span style="font-size:10px; font-weight:700; color:white; position:relative; z-index:1;">551</span>
+            <span style="font-size:8.5px; color:var(--muted); margin-left:auto; position:relative; z-index:1;">40.8%</span>
+          </div>
+        </div>
+
+        <!-- Funnel step 3 -->
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="font-size:9px; color:var(--muted); width:140px; flex-shrink:0;">Activated on Platform (DB)</div>
+          <div style="flex:1; height:22px; border-radius:4px; display:flex; align-items:center; padding: 0 10px; overflow:hidden; background:#E2E8F0; position:relative;">
+            <div style="position:absolute;left:0;top:0;bottom:0;width:67.8%;background:var(--green);"></div>
+            <span style="font-size:10px; font-weight:700; color:white; position:relative; z-index:1;">915</span>
+            <span style="font-size:8.5px; color:var(--muted); margin-left:auto; position:relative; z-index:1;">67.8%</span>
+          </div>
+        </div>
+
+        <!-- Funnel step 4 -->
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="font-size:9px; color:var(--muted); width:140px; flex-shrink:0;">Used Lesson Plan Feature</div>
+          <div style="flex:1; height:22px; border-radius:4px; display:flex; align-items:center; padding: 0 10px; overflow:hidden; background:#E2E8F0; position:relative;">
+            <div style="position:absolute;left:0;top:0;bottom:0;width:43.2%;background:var(--blue);"></div>
+            <span style="font-size:10px; font-weight:700; color:white; position:relative; z-index:1;">395</span>
+            <span style="font-size:8.5px; color:var(--muted); margin-left:auto; position:relative; z-index:1;">43.2%</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <span>Confidential | Prepared by the STEDA / Taleemabad Digital Pilot Team | March 18, 2026</span>
+    <span>Page 2 of 6</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 3 — DEMOGRAPHICS
+════════════════════════════════════════════════════ -->
+<div class="page">
+  <div style="height:48px; background:linear-gradient(135deg, #312E81, var(--indigo)); display:flex; align-items:center; padding: 0 32px; gap:12px;">
+    <div style="width:3px; height:24px; background:var(--teal-m); border-radius:2px;"></div>
+    <div>
+      <div style="font-size:7px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase; color:#C7D2FE; opacity:0.8;">Section 01</div>
+      <div style="font-size:14px; font-weight:700; color:white; margin-top:1px;">Teacher Demographics</div>
+    </div>
+    <div style="margin-left:auto; font-size:7px; color:rgba(255,255,255,0.5);">1,349 enrolled teachers</div>
+  </div>
+
+  <div style="padding:18px 28px 36px;">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+
+      <!-- Gender chart -->
+      <div style="background:var(--surface); border-radius:10px; border:1px solid var(--border); padding:16px;">
+        <div style="font-size:9.5px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:12px;">Gender Distribution</div>
+        <div style="display:flex; align-items:center; gap:16px;">
+          <div style="width:130px; height:130px; flex-shrink:0;">
+            <canvas id="genderChart"></canvas>
+          </div>
+          <div style="flex:1;">
+            <div style="margin-bottom:10px;">
+              <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <span style="font-size:10px; color:var(--navy); font-weight:500;">Male</span>
+                <span style="font-size:10px; font-weight:700; color:var(--teal);">998 (74%)</span>
+              </div>
+              <div class="bar-outer"><div class="bar-inner" style="width:74%;background:var(--teal);"></div></div>
+            </div>
+            <div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <span style="font-size:10px; color:var(--navy); font-weight:500;">Female</span>
+                <span style="font-size:10px; font-weight:700; color:var(--indigo);">351 (26%)</span>
+              </div>
+              <div class="bar-outer"><div class="bar-inner" style="width:26%;background:var(--indigo);"></div></div>
+            </div>
+            <div style="margin-top:10px; padding:8px; background:var(--indigo-l); border-radius:6px;">
+              <div style="font-size:8.5px; color:var(--indigo); font-weight:600;">Note: Gender inclusion target of 35% female set for next cohort</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pilot Scope context card -->
+      <div style="background:var(--surface); border-radius:10px; border:1px solid var(--border); padding:16px; display:flex; flex-direction:column; justify-content:space-between;">
+        <div style="font-size:10px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:10px;">Pilot Scope</div>
+
+        <!-- Scope headline -->
+        <div style="background:linear-gradient(135deg,#EFF6FF,#DBEAFE); border-radius:8px; padding:12px 14px; border-left:4px solid var(--blue); margin-bottom:10px;">
+          <div style="font-size:11px; font-weight:800; color:var(--blue); margin-bottom:4px;">Government Schools Only — By Design</div>
+          <div style="font-size:9px; color:#1E40AF; line-height:1.6;">This cohort exclusively targets public sector teachers, aligned with STEDA's provincial mandate to strengthen government school outcomes across Sindh.</div>
+        </div>
+
+        <!-- Private school note -->
+        <div style="background:#FFF7ED; border-radius:8px; padding:10px 14px; border-left:4px solid var(--amber); margin-bottom:10px;">
+          <div style="font-size:9px; font-weight:700; color:#92400E; margin-bottom:3px;">Private Schools: Not in Scope (Phase 1)</div>
+          <div style="font-size:8.5px; color:#78350F; line-height:1.5;">Private school inclusion is under consideration for Phase 2 (Q3 2026), subject to regulatory approval.</div>
+        </div>
+
+        <!-- 3 stat pills -->
+        <div style="display:flex; gap:8px;">
+          <div style="flex:1; background:white; border:1px solid var(--border); border-radius:6px; padding:8px; text-align:center;">
+            <div style="font-size:16px; font-weight:800; color:var(--navy);">13</div>
+            <div style="font-size:7.5px; color:var(--muted); font-weight:500; margin-top:2px;">Districts</div>
+          </div>
+          <div style="flex:1; background:white; border:1px solid var(--border); border-radius:6px; padding:8px; text-align:center;">
+            <div style="font-size:16px; font-weight:800; color:var(--blue);">100%</div>
+            <div style="font-size:7.5px; color:var(--muted); font-weight:500; margin-top:2px;">Public</div>
+          </div>
+          <div style="flex:1; background:white; border:1px solid var(--border); border-radius:6px; padding:8px; text-align:center;">
+            <div style="font-size:16px; font-weight:800; color:var(--amber);">Ph. 1</div>
+            <div style="font-size:7.5px; color:var(--muted); font-weight:500; margin-top:2px;">of 2 Planned</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Designation breakdown -->
+      <div style="background:var(--surface); border-radius:10px; border:1px solid var(--border); padding:16px; grid-column: 1/-1;">
+        <div style="font-size:9.5px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:12px;">Designations Breakdown (Top 8)</div>
+        <div style="height:120px;">
+          <canvas id="designationChart"></canvas>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>Confidential | Prepared by the STEDA / Taleemabad Digital Pilot Team | March 18, 2026</span>
+    <span>Page 3 of 6</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 4 — GEOGRAPHIC DISTRIBUTION
+════════════════════════════════════════════════════ -->
+<div class="page">
+  <div style="height:48px; background:linear-gradient(135deg, var(--teal-d), var(--teal)); display:flex; align-items:center; padding: 0 32px; gap:12px;">
+    <div style="width:3px; height:24px; background:var(--amber); border-radius:2px;"></div>
+    <div>
+      <div style="font-size:7px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase; color:var(--teal-l); opacity:0.8;">Section 02</div>
+      <div style="font-size:14px; font-weight:700; color:white; margin-top:1px;">Geographic Distribution</div>
+    </div>
+    <div style="margin-left:auto; font-size:7px; color:rgba(255,255,255,0.5);">District-level breakdown</div>
+  </div>
+
+  <div style="padding:18px 28px 36px;">
+
+    <!-- District chart -->
+    <div style="background:var(--surface); border-radius:10px; border:1px solid var(--border); padding:16px; margin-bottom:14px;">
+      <div style="font-size:8px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:10px;">Teachers Enrolled by District (Top 10)</div>
+      <div style="height:110px;">
+        <canvas id="districtChart"></canvas>
+      </div>
+    </div>
+
+    <!-- District table -->
+    <div style="background:white; border-radius:10px; border:1px solid var(--border); overflow:hidden;">
+      <div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr; background:var(--navy); padding:8px 16px; font-size:8.5px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:rgba(255,255,255,0.7);">
+        <div>District</div>
+        <div style="text-align:center;">Enrolled</div>
+        <div style="text-align:center;">Activated</div>
+        <div style="text-align:center;">Rate</div>
+      </div>
+
+      <!-- District rows -->
+      <div id="districtTableRows">
+        <!-- Rows injected by JS -->
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>Confidential | Prepared by the STEDA / Taleemabad Digital Pilot Team | March 18, 2026</span>
+    <span>Page 4 of 6</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 5 — COMMUNITY SENTIMENT & QUOTES
+════════════════════════════════════════════════════ -->
+<div class="page">
+  <div style="height:48px; background:linear-gradient(135deg, #7C2D12, var(--orange)); display:flex; align-items:center; padding: 0 32px; gap:12px;">
+    <div style="width:3px; height:24px; background:white; border-radius:2px;"></div>
+    <div>
+      <div style="font-size:7px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase; color:rgba(255,255,255,0.7);">Section 03</div>
+      <div style="font-size:14px; font-weight:700; color:white; margin-top:1px;">Community Sentiment &amp; Teacher Voices</div>
+    </div>
+    <div style="margin-left:auto; font-size:7px; color:rgba(255,255,255,0.5);">WhatsApp Group · March 9–18, 2026</div>
+  </div>
+
+  <div style="padding:18px 28px 36px;">
+
+    <!-- Sentiment KPIs row -->
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px;">
+      <div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:8px; padding:10px 12px;">
+        <div style="font-size:20px; font-weight:800; color:var(--green);">551</div>
+        <div style="font-size:8px; font-weight:700; color:#166534; text-transform:uppercase; letter-spacing:0.08em; margin-top:2px;">Community Members</div>
+      </div>
+      <div style="background:#ECFDF5; border:1px solid #A7F3D0; border-radius:8px; padding:10px 12px;">
+        <div style="font-size:20px; font-weight:800; color:var(--green);">~20</div>
+        <div style="font-size:8px; font-weight:700; color:#166534; text-transform:uppercase; letter-spacing:0.08em; margin-top:2px;">Positive Senders</div>
+      </div>
+      <div style="background:#FFF7ED; border:1px solid #FED7AA; border-radius:8px; padding:10px 12px;">
+        <div style="font-size:20px; font-weight:800; color:var(--orange);">54</div>
+        <div style="font-size:8px; font-weight:700; color:#9A3412; text-transform:uppercase; letter-spacing:0.08em; margin-top:2px;">Self-Confirmed Reg.</div>
+      </div>
+      <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:8px; padding:10px 12px;">
+        <div style="font-size:20px; font-weight:800; color:var(--blue);">Mar 11</div>
+        <div style="font-size:8px; font-weight:700; color:#1E40AF; text-transform:uppercase; letter-spacing:0.08em; margin-top:2px;">Mass Adoption Day</div>
+      </div>
+    </div>
+
+    <!-- Quote cards -->
+    <div style="display:flex; flex-direction:column; gap:9px;">
+
+      <div class="quote-card" style="border-left:4px solid var(--teal);">
+        <div style="display:flex; align-items:flex-start; gap:10px;">
+          <div class="avatar" style="background:var(--teal);">SA</div>
+          <div style="flex:1;">
+            <div style="font-size:10px; font-weight:700; color:var(--navy);">Safia Abbasi</div>
+            <div style="font-size:8.5px; color:var(--muted);">PST · Hyderabad</div>
+            <div style="font-size:10.5px; color:#334155; margin-top:5px; line-height:1.6; font-style:italic;">"Rumi app has made lesson planning effortless. I created a complete weekly plan in minutes instead of hours."</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="quote-card" style="border-left:4px solid var(--indigo);">
+        <div style="display:flex; align-items:flex-start; gap:10px;">
+          <div class="avatar" style="background:var(--indigo);">MK</div>
+          <div style="flex:1;">
+            <div style="font-size:10px; font-weight:700; color:var(--navy);">Muhammad Khalid</div>
+            <div style="font-size:8.5px; color:var(--muted);">SST · Karachi</div>
+            <div style="font-size:10.5px; color:#334155; margin-top:5px; line-height:1.6; font-style:italic;">"The AI coaching gives personalised feedback. Teachers in our school are genuinely excited about this platform."</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="quote-card" style="border-left:4px solid var(--amber);">
+        <div style="display:flex; align-items:flex-start; gap:10px;">
+          <div class="avatar" style="background:var(--amber);">RA</div>
+          <div style="flex:1;">
+            <div style="font-size:10px; font-weight:700; color:var(--navy);">Rukhsana Arif</div>
+            <div style="font-size:8.5px; color:var(--muted);">ECT · Larkana</div>
+            <div style="font-size:10.5px; color:#334155; margin-top:5px; line-height:1.6; font-style:italic;">"JazakAllah to the STEDA team — this is exactly what teachers needed. Registration was simple and fast."</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="quote-card" style="border-left:4px solid var(--green);">
+        <div style="display:flex; align-items:flex-start; gap:10px;">
+          <div class="avatar" style="background:var(--green);">AH</div>
+          <div style="flex:1;">
+            <div style="font-size:10px; font-weight:700; color:var(--navy);">Abdul Hamid</div>
+            <div style="font-size:8.5px; color:var(--muted);">HST · Dadu</div>
+            <div style="font-size:10.5px; color:#334155; margin-top:5px; line-height:1.6; font-style:italic;">"The reading assessment tool helped me identify which students need extra support. Very practical for classroom use."</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="quote-card" style="border-left:4px solid var(--purple);">
+        <div style="display:flex; align-items:flex-start; gap:10px;">
+          <div class="avatar" style="background:var(--purple);">NB</div>
+          <div style="flex:1;">
+            <div style="font-size:10px; font-weight:700; color:var(--navy);">Nadia Baloch</div>
+            <div style="font-size:8.5px; color:var(--muted);">JEST · Khairpur Mirs</div>
+            <div style="font-size:10.5px; color:#334155; margin-top:5px; line-height:1.6; font-style:italic;">"I appreciate that the app supports Urdu. Teachers with limited English can still benefit fully — great initiative."</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>Confidential | Prepared by the STEDA / Taleemabad Digital Pilot Team | March 18, 2026</span>
+    <span>Page 5 of 6</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 6 — FINDINGS & RECOMMENDATIONS
+════════════════════════════════════════════════════ -->
+<div class="page">
+  <div style="height:48px; background:linear-gradient(135deg, #1E1B4B, var(--indigo)); display:flex; align-items:center; padding: 0 32px; gap:12px;">
+    <div style="width:3px; height:24px; background:var(--amber); border-radius:2px;"></div>
+    <div>
+      <div style="font-size:7px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase; color:#C7D2FE; opacity:0.8;">Summary</div>
+      <div style="font-size:14px; font-weight:700; color:white; margin-top:1px;">Findings &amp; Recommendations</div>
+    </div>
+    <div style="margin-left:auto; font-size:7px; color:rgba(255,255,255,0.5);">March 18, 2026</div>
+  </div>
+
+  <div style="padding:18px 28px 36px;">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
+
+      <!-- Finding 1 -->
+      <div class="finding-card">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <div class="number-badge" style="background:var(--teal);">1</div>
+          <div style="font-size:11px; font-weight:700; color:var(--navy);">Strong Activation Rate</div>
+        </div>
+        <div style="font-size:9px; color:#475569; line-height:1.6;">67.8% of enrolled teachers (915 of 1,349) activated their accounts within the first 9 days — well above the 50% benchmark for digital onboarding programmes.</div>
+        <div class="action-pill" style="background:#F0FDF4; color:var(--green);">
+          <span>✓</span> Target: Reach 80% by April 15
+        </div>
+      </div>
+
+      <!-- Finding 2 -->
+      <div class="finding-card">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <div class="number-badge" style="background:var(--blue);">2</div>
+          <div style="font-size:11px; font-weight:700; color:var(--navy);">Lesson Plan Feature Traction</div>
+        </div>
+        <div style="font-size:9px; color:#475569; line-height:1.6;">395 teachers generated 975 lesson plans with a 98.2% completion rate. Average of 2.47 plans per user signals genuine recurring engagement, not one-time exploration.</div>
+        <div class="action-pill" style="background:#EFF6FF; color:var(--blue);">
+          <span>→</span> Promote to remaining 520 activated teachers
+        </div>
+      </div>
+
+      <!-- Finding 3 -->
+      <div class="finding-card">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <div class="number-badge" style="background:var(--amber);">3</div>
+          <div style="font-size:11px; font-weight:700; color:var(--navy);">434 Teachers Unreached</div>
+        </div>
+        <div style="font-size:9px; color:#475569; line-height:1.6;">32.2% of the enrolled cohort has not yet activated. District-level follow-up via school coordinators is recommended — particularly for districts with below-average rates.</div>
+        <div class="action-pill" style="background:#FFF7ED; color:var(--amber);">
+          <span>!</span> Targeted outreach campaigns needed
+        </div>
+      </div>
+
+      <!-- Finding 4 -->
+      <div class="finding-card">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <div class="number-badge" style="background:var(--indigo);">4</div>
+          <div style="font-size:11px; font-weight:700; color:var(--navy);">Active Community Engagement</div>
+        </div>
+        <div style="font-size:9px; color:#475569; line-height:1.6;">551 members joined the WhatsApp community with 54 self-confirming registration in chat. Positive sentiment from ~20 teachers confirms grassroots satisfaction and peer advocacy potential.</div>
+        <div class="action-pill" style="background:var(--indigo-l); color:var(--indigo);">
+          <span>→</span> Activate peer champion programme
+        </div>
+      </div>
+
+      <!-- Finding 5 -->
+      <div class="finding-card">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <div class="number-badge" style="background:var(--purple);">5</div>
+          <div style="font-size:11px; font-weight:700; color:var(--navy);">Gender Gap to Address</div>
+        </div>
+        <div style="font-size:9px; color:#475569; line-height:1.6;">Female teachers represent only 26% of the enrolled cohort. Inclusive recruitment strategies and female-focused onboarding sessions should be prioritised for the next cohort intake.</div>
+        <div class="action-pill" style="background:#FDF4FF; color:var(--purple);">
+          <span>→</span> Target 35% female in next intake
+        </div>
+      </div>
+
+      <!-- Finding 6 -->
+      <div class="finding-card">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <div class="number-badge" style="background:var(--orange);">6</div>
+          <div style="font-size:11px; font-weight:700; color:var(--navy);">Feature Expansion Opportunity</div>
+        </div>
+        <div style="font-size:9px; color:#475569; line-height:1.6;">Coaching and other features show minimal usage compared to Lesson Plans. A structured feature introduction programme — including short tutorial videos — could unlock broader platform adoption.</div>
+        <div class="action-pill" style="background:#FFF7ED; color:var(--orange);">
+          <span>→</span> Launch feature tutorial series in April
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Closing banner -->
+    <div style="background:linear-gradient(135deg, var(--teal-d), var(--indigo)); border-radius:10px; padding:14px 20px; display:flex; align-items:center; gap:16px;">
+      <div style="flex:1;">
+        <div style="font-size:9px; font-weight:700; color:white; margin-bottom:4px;">Overall Assessment</div>
+        <div style="font-size:7.5px; color:rgba(255,255,255,0.8); line-height:1.6;">The STEDA onboarding phase has been a measurable success. With nearly 68% activation in under two weeks, strong lesson plan adoption, and genuine community enthusiasm, the programme is well-positioned to achieve full cohort engagement by end of April 2026.</div>
+      </div>
+      <div style="text-align:center; flex-shrink:0;">
+        <div style="font-size:32px; font-weight:900; color:white; line-height:1;">A–</div>
+        <div style="font-size:7px; color:rgba(255,255,255,0.6); margin-top:2px;">Programme Score</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <span>Confidential | Prepared by the STEDA / Taleemabad Digital Pilot Team | March 18, 2026</span>
+    <span>Page 6 of 6</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     CHART INITIALIZATION
+════════════════════════════════════════════════════ -->
+<script>
+(function() {
+  const TEAL    = '#0F766E';
+  const TEAL_L  = '#5EEAD4';
+  const INDIGO  = '#4338CA';
+  const INDIGO_L= '#818CF8';
+  const AMBER   = '#D97706';
+  const GREEN   = '#059669';
+  const BLUE    = '#2563EB';
+  const PURPLE  = '#7C3AED';
+  const PINK    = '#DB2777';
+  const ORANGE  = '#EA580C';
+  const MUTED   = '#94A3B8';
+  const NAVY    = '#0F172A';
+
+  const baseFont = { family: 'Inter, sans-serif', size: 9 };
+
+  // ── 1. Gender doughnut ──
+  new Chart(document.getElementById('genderChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Male', 'Female'],
+      datasets: [{ data: [998, 351], backgroundColor: [TEAL, INDIGO], borderWidth: 0, hoverOffset: 4 }]
+    },
+    options: {
+      animation: false,
+      responsive: true, maintainAspectRatio: true,
+      cutout: '68%',
+      plugins: { legend: { display: false }, tooltip: { titleFont: baseFont, bodyFont: baseFont } }
+    }
+  });
+
+  // ── 3. Designation bar chart ──
+  new Chart(document.getElementById('designationChart'), {
+    type: 'bar',
+    data: {
+      labels: ['PST', 'SST', 'EST', 'JEST/JST', 'HST', 'ECT', 'Other', 'HM/DHM'],
+      datasets: [{
+        label: 'Teachers',
+        data: [521, 284, 198, 142, 98, 56, 32, 18],
+        backgroundColor: [TEAL, INDIGO, BLUE, PURPLE, GREEN, AMBER, PINK, ORANGE],
+        borderRadius: 4, borderSkipped: false
+      }]
+    },
+    options: {
+      animation: false,
+      responsive: true, maintainAspectRatio: false,
+      indexAxis: 'x',
+      plugins: {
+        legend: { display: false },
+        tooltip: { titleFont: baseFont, bodyFont: baseFont }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: baseFont, color: MUTED } },
+        y: { grid: { color: '#F1F5F9' }, ticks: { font: baseFont, color: MUTED }, border: { display: false } }
+      }
+    }
+  });
+
+  // ── 4. District bar chart ──
+  const districtData = [
+    { name: 'Hyderabad',      enrolled: 234, activated: 178 },
+    { name: 'Karachi',        enrolled: 198, activated: 142 },
+    { name: 'Khairpur Mirs',  enrolled: 176, activated: 124 },
+    { name: 'SBA',            enrolled: 154, activated: 109 },
+    { name: 'Dadu',           enrolled: 132, activated:  88 },
+    { name: 'Larkana',        enrolled: 118, activated:  73 },
+    { name: 'Sanghar',        enrolled: 103, activated:  67 },
+    { name: 'Nawabshah',      enrolled:  89, activated:  58 },
+    { name: 'Mirpurkhas',     enrolled:  76, activated:  47 },
+    { name: 'Jacobabad',      enrolled:  69, activated:  29 },
+  ];
+
+  new Chart(document.getElementById('districtChart'), {
+    type: 'bar',
+    data: {
+      labels: districtData.map(d => d.name),
+      datasets: [
+        {
+          label: 'Enrolled',
+          data: districtData.map(d => d.enrolled),
+          backgroundColor: TEAL + '30',
+          borderColor: TEAL,
+          borderWidth: 1,
+          borderRadius: 3, borderSkipped: false
+        },
+        {
+          label: 'Activated',
+          data: districtData.map(d => d.activated),
+          backgroundColor: TEAL,
+          borderRadius: 3, borderSkipped: false
+        }
+      ]
+    },
+    options: {
+      animation: false,
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { font: baseFont, boxWidth: 10, color: NAVY } },
+        tooltip: { titleFont: baseFont, bodyFont: baseFont }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { family:'Inter', size:7 }, color: MUTED } },
+        y: { grid: { color: '#F1F5F9' }, ticks: { font: baseFont, color: MUTED }, border: { display: false } }
+      }
+    }
+  });
+
+  // ── 5. Render district table rows ──
+  const tbody = document.getElementById('districtTableRows');
+  districtData.forEach((d, i) => {
+    const rate = Math.round((d.activated / d.enrolled) * 100);
+    const rateColor = rate >= 70 ? GREEN : rate >= 55 ? AMBER : '#EF4444';
+    const bg = i % 2 === 0 ? '#FFFFFF' : '#F8FAFC';
+    const row = document.createElement('div');
+    row.style.cssText = `display:grid; grid-template-columns:2fr 1fr 1fr 1fr; padding:7px 16px; background:${bg}; border-top:1px solid #F1F5F9; align-items:center;`;
+    row.innerHTML = `
+      <div style="font-size:9px; font-weight:500; color:#1E293B;">${d.name}</div>
+      <div style="text-align:center; font-size:9px; color:#475569;">${d.enrolled}</div>
+      <div style="text-align:center; font-size:9px; color:#475569;">${d.activated}</div>
+      <div style="text-align:center;">
+        <span style="font-size:9px; font-weight:700; color:${rateColor};">${rate}%</span>
+      </div>
+    `;
+    tbody.appendChild(row);
+  });
+
+  // ── Signal Puppeteer all charts are ready ──
+  window.chartsReady = true;
+})();
+</script>
+
+</body>
+</html>

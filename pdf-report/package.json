@@ -1,0 +1,12 @@
+{
+  "name": "steda-report-generator",
+  "version": "1.0.0",
+  "description": "Generates STEDA onboarding report PDF via Puppeteer",
+  "main": "generate-pdf.js",
+  "scripts": {
+    "generate": "node generate-pdf.js"
+  },
+  "dependencies": {
+    "puppeteer-core": "^21.0.0"
+  }
+}

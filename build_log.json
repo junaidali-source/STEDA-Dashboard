@@ -1,0 +1,51 @@
+[
+{"type":"stdout","created":1774337108415,"payload":{"deploymentId":"dpl_HBQ77wzw2c6ANYWkdPn7Z3gDok8K","info":{"type":"build","name":"bld_bqs9j227u","entrypoint":"."},"text":"Running build in Washington, D.C., USA (East) – iad1","id":"1774337108415687128929800000","date":1774337108415,"serial":"1774337108415687128929800000"}}
+,
+{"type":"stdout","created":1774337108415,"payload":{"deploymentId":"dpl_HBQ77wzw2c6ANYWkdPn7Z3gDok8K","info":{"type":"build","name":"bld_bqs9j227u","entrypoint":"."},"text":"Build machine configuration: 2 cores, 8 GB","id":"1774337108415687128929800001","date":1774337108415,"serial":"1774337108415687128929800001"}}
+,
+{"type":"stdout","created":1774337108538,"payload":{"deploymentId":"dpl_HBQ77wzw2c6ANYWkdPn7Z3gDok8K","info":{"type":"build","name":"bld_bqs9j227u","entrypoint":"."},"text":"Cloning github.com/junaidali-source/STEDA-Dashboard (Branch: main, Commit: 22d04d9)","id":"1774337108538687128929800001","date":1774337108538,"serial":"1774337108538687128929800001"}}
+,
+{"type":"stdout","created":1774337108772,"payload":{"deploymentId":"dpl_HBQ77wzw2c6ANYWkdPn7Z3gDok8K","info":{"type":"build","name":"bld_bqs9j227u","entrypoint":"."},"text":"Cloning completed: 234.000ms","id":"1774337108772687128929800000","date":1774337108772,"serial":"1774337108772687128929800000"}}
+,
+{"type":"stdout","created":1774337109595,"payload":{"deploymentId":"dpl_HBQ77wzw2c6ANYWkdPn7Z3gDok8K","info":{"type":"build","name":"bld_bqs9j227u","entrypoint":"."},"text":"Restored build cache from previous deployment (76fgYfUwbDD7vaxoypyv6umkhQ36)","id":"1774337109595687128929800000","date":1774337109595,"serial":"1774337109595687128929800000"}}
+,
+{"type":"stdout","created":1774337109858,"payload":{"deploymentId":"dpl_HBQ77wzw2c6ANYWkdPn7Z3gDok8K","info":{"type":"build","name":"bld_bqs9j227u","entrypoint":"."},"text":"Running \"vercel build\"","id":"1774337109858452694779800000","date":1774337109858,"serial":"1774337109858452694779800000"}}
+,
+{"type":"stderr","created":1774337110482,"payload":{"deploymentId":"dpl_HBQ77wzw2c6ANYWkdPn7Z3gDok8K","info":{"type":"build","name":"bld_bqs9j227u","entrypoint":"."},"text":"Vercel CLI 50.35.0","id":"1774337110482452694779800000","date":1774337110482,"serial":"1774337110482452694779800000"}}
+,
+{"type":"stdout","created":1774337110670,"payload":{"deploymentId":"dpl_HBQ77wzw2c6ANYWkdPn7Z3gDok8K","info":{"type":"build","name":"bld_bqs9j227u","entrypoint":"."},"text":"Your application is being built using `next build`. If you need to define a different build step, please create a `vercel-build` script in your `package.json` (e.g. `{ \"scripts\": { \"vercel-build\": \"npm run prepare && next build\" } }`).","id":"1774337110670452694779800000","date":1774337110670,"serial":"1774337110670452694779800000"}}
+,
+{"type":"stdout","created":1774337110673,"payload":{"deploymentId":"dpl_HBQ77wzw2c6ANYWkdPn7Z3gDok8K","info":{"type":"build","name":"bld_bqs9j227u","entrypoint":"."},"text":"Installing dependencies...","id":"1774337110673452694779800000","date":1774337110673,"serial":"1774337110673452694779800000"}}
+,
+{"type":"stdout","created":1774337111553,"payload":{"deploymentId":"dpl_HBQ77wzw2c6ANYWkdPn7Z3gDok8K","info":{"type":"build","name":"bld_bqs9j227u","entrypoint":"."},"text":"","id":"1774337111553452694779800000","date":1774337111553,"serial":"1774337111553452694779800000"}}
+,
+{"type":"stdout","created":1774337111553,"payload":{"deploymentId":"dpl_HBQ77wzw2c6ANYWkdPn7Z3gDok8K","info":{"type":"build","name":"bld_bqs9j227u","entrypoint":"."},"text":"up to date in 664ms","id":"1774337111553452694779800001","date":1774337111553,"serial":"1774337111553452694779800001"}}
+,
+{"type":"stdout","created":1774337111581,"payload":{"deploymentId":"dpl_HBQ77wzw2c6ANYWkdPn7Z3gDok8K","info":{"type":"build","name":"bld_bqs9j227u","entrypoint":"."},"text":"Detected Next.js version: 14.2.35","id":"1774337111581452694779800000","date":1774337111581,"serial":"1774337111581452694779800000"}}
+,
+{"type":"stdout","created":1774337111585,"payload":{"deploymentId":"dpl_HBQ77wzw2c6ANYWkdPn7Z3gDok8K","info":{"type":"build","name":"bld_bqs9j227u","entrypoint":"."},"text":"Running \"npm run vercel-build\"","id":"1774337111585452694779800000","date":1774337111585,"serial":"1774337111585452694779800000"}}
+,
+{"type":"stdout","created":1774337111685,"payload":{"deploymentId":"dpl_HBQ77wzw2c6ANYWkdPn7Z3gDok8K","info":{"type":"build","name":"bld_bqs9j227u","entrypoint":"."},"text":"","id":"1774337111685452694779800000","date":1774337111685,"serial":"1774337111685452694779800000"}}
+,
+{"type":"stdout","created":1774337111686,"payload":{"deploymentId":"dpl_HBQ77wzw2c6ANYWkdPn7Z3gDok8K","info":{"type":"build","name":"bld_bqs9j227u","entrypoint":"."},"text":"> vercel-build","id":"1774337111686452694779800000","date":1774337111686,"serial":"1774337111686452694779800000"}}
+,
+{"type":"stdout","created":1774337111686,"payload":{"deploymentId":"dpl_HBQ77wzw2c6ANYWkdPn7Z3gDok8K","info":{"type":"build","name":"bld_bqs9j227u","entrypoint":"."},"text":"> next build","id":"1774337111686452694779800001","date":1774337111686,"serial":"1774337111686452694779800001"}}
+,
+{"type":"stdout","created":1774337111686,"payload":{"deploymentId":"dpl_HBQ77wzw2c6ANYWkdPn7Z3gDok8K","info":{"type":"build","name":"bld_bqs9j227u","entrypoint":"."},"text":"","id":"1774337111686452694779800002","date":1774337111686,"serial":"1774337111686452694779800002"}}
+,
+{"type":"stderr","created":1774337112736,"payload":{"deploymentId":"dpl_HBQ77wzw2c6ANYWkdPn7Z3gDok8K","info":{"type":"build","name":"bld_bqs9j227u","entrypoint":"."},"text":"","id":"1774337112736452694779800000","date":1774337112736,"serial":"1774337112736452694779800000"}}
+,
+{"type":"stderr","created":1774337112736,"payload":{"deploymentId":"dpl_HBQ77wzw2c6ANYWkdPn7Z3gDok8K","info":{"type":"build","name":"bld_bqs9j227u","entrypoint":"."},"text":"> Build error occurred","id":"1774337112736452694779800001","date":1774337112736,"serial":"1774337112736452694779800001"}}
+,
+{"type":"stderr","created":1774337112737,"payload":{"deploymentId":"dpl_HBQ77wzw2c6ANYWkdPn7Z3gDok8K","info":{"type":"build","name":"bld_bqs9j227u","entrypoint":"."},"text":"Error: > Couldn't find any `pages` or `app` directory. Please create one under the project root","id":"1774337112737452694779800000","date":1774337112737,"serial":"1774337112737452694779800000"}}
+,
+{"type":"stderr","created":1774337112737,"payload":{"deploymentId":"dpl_HBQ77wzw2c6ANYWkdPn7Z3gDok8K","info":{"type":"build","name":"bld_bqs9j227u","entrypoint":"."},"text":"    at findPagesDir (/vercel/path0/node_modules/next/dist/lib/find-pages-dir.js:42:15)","id":"1774337112737452694779800001","date":1774337112737,"serial":"1774337112737452694779800001"}}
+,
+{"type":"stderr","created":1774337112737,"payload":{"deploymentId":"dpl_HBQ77wzw2c6ANYWkdPn7Z3gDok8K","info":{"type":"build","name":"bld_bqs9j227u","entrypoint":"."},"text":"    at /vercel/path0/node_modules/next/dist/build/index.js:406:73","id":"1774337112737452694779800002","date":1774337112737,"serial":"1774337112737452694779800002"}}
+,
+{"type":"stderr","created":1774337112737,"payload":{"deploymentId":"dpl_HBQ77wzw2c6ANYWkdPn7Z3gDok8K","info":{"type":"build","name":"bld_bqs9j227u","entrypoint":"."},"text":"    at async Span.traceAsyncFn (/vercel/path0/node_modules/next/dist/trace/trace.js:154:20)","id":"1774337112737452694779800003","date":1774337112737,"serial":"1774337112737452694779800003"}}
+,
+{"type":"stderr","created":1774337112737,"payload":{"deploymentId":"dpl_HBQ77wzw2c6ANYWkdPn7Z3gDok8K","info":{"type":"build","name":"bld_bqs9j227u","entrypoint":"."},"text":"    at async build (/vercel/path0/node_modules/next/dist/build/index.js:368:9)","id":"1774337112737452694779800004","date":1774337112737,"serial":"1774337112737452694779800004"}}
+,
+{"type":"stderr","created":1774337112758,"payload":{"deploymentId":"dpl_HBQ77wzw2c6ANYWkdPn7Z3gDok8K","info":{"type":"build","name":"bld_bqs9j227u","entrypoint":"."},"text":"Error: Command \"npm run vercel-build\" exited with 1","id":"1774337112758452694779800000","date":1774337112758,"serial":"1774337112758452694779800000"}}
+]

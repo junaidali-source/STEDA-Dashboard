@@ -4,12 +4,11 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PK_REGION_OPTIONS } from '@/lib/pk-regions'
 
-const COUNTRIES = [
-  { code: 'all', label: 'All Countries' },
-  { code: '92',  label: '🇵🇰 Pakistan'  },
-  { code: '94',  label: '🇱🇰 Sri Lanka' },
-  { code: '96',  label: '🇲🇲 Myanmar'   },
-]
+const COUNTRY_CODES: Record<string, string> = {
+  '92': '🇵🇰 Pakistan',
+  '94': '🇱🇰 Sri Lanka',
+  '96': '🇲🇲 Myanmar',
+}
 
 interface Partner {
   id: string
@@ -33,6 +32,7 @@ export default function FilterBar() {
   const compare_from = sp.get('compare_from') || ''
   const compare_to   = sp.get('compare_to')   || ''
 
+  const [countryInput,  setCountryInput]  = useState(country === 'all' ? '' : country)
   const [schoolInput,   setSchoolInput]   = useState(school)
   const [suggestions,   setSuggestions]   = useState<string[]>([])
   const [showSug,       setShowSug]       = useState(false)
@@ -108,10 +108,12 @@ export default function FilterBar() {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- reset partner only when invalid
   }, [country, region, partner, partnersInRegion])
 
-  const handleApply = () =>
+  const handleApply = () => {
+    const c = countryInput || 'all'
+    const reg = c === '92' ? region : ''
     push(
-      country,
-      region,
+      c,
+      reg,
       schoolInput,
       partner,
       fromInput,
@@ -119,47 +121,51 @@ export default function FilterBar() {
       showCompare ? compFrom : '',
       showCompare ? compTo : '',
     )
+  }
 
   const handleClear = () => {
-    setSchoolInput(''); setFromInput(''); setToInput('')
+    setCountryInput(''); setSchoolInput(''); setFromInput(''); setToInput('')
     setCompFrom('');    setCompTo('');    setShowCompare(false)
     push('all', '', '', '', '', '', '', '')
   }
 
   const hasFilter =
-    country !== 'all' || !!region || schoolInput || partner || fromInput || toInput
+    country !== 'all' || !!region || schoolInput || partner || fromInput || toInput || countryInput
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3 bg-white border border-slate-200 rounded-2xl px-5 py-4 shadow-sm shadow-slate-200/50">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 shrink-0">Filters</span>
 
-        {/* Country */}
-        <select
-          aria-label="Country"
-          title="Country"
-          value={country}
+        {/* Country Code Input */}
+        <input
+          type="text"
+          placeholder="Country code (e.g. +92)"
+          value={countryInput}
           onChange={(e) => {
-            const c = e.target.value
+            const val = e.target.value.replace(/\D/g, '')
+            setCountryInput(val)
+          }}
+          onBlur={() => {
+            const c = countryInput || 'all'
             const reg = c === '92' ? region : ''
             push(c, reg, schoolInput, partner, fromInput, toInput, showCompare ? compFrom : '', showCompare ? compTo : '')
           }}
-          className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400"
-        >
-          {COUNTRIES.map((c) => (
-            <option key={c.code} value={c.code}>{c.label}</option>
-          ))}
-        </select>
+          aria-label="Country code"
+          title="Enter country code (e.g., 92 for Pakistan)"
+          className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 w-40"
+        />
 
         {/* Pakistan region (from Rumi users.region) */}
-        {country === '92' && (
+        {(countryInput === '92' || country === '92') && (
           <select
             aria-label="Pakistan region"
             title="Pakistan region"
             value={region}
-            onChange={(e) =>
+            onChange={(e) => {
+              const c = countryInput || country
               push(
-                country,
+                c,
                 e.target.value,
                 schoolInput,
                 partner,
@@ -168,7 +174,7 @@ export default function FilterBar() {
                 showCompare ? compFrom : '',
                 showCompare ? compTo : '',
               )
-            }
+            }}
             className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400"
           >
             {PK_REGION_OPTIONS.map((r) => (
@@ -321,7 +327,7 @@ export default function FilterBar() {
         <div className="flex flex-wrap gap-2 ml-1">
           {country !== 'all' && (
             <span className="bg-indigo-100 text-indigo-700 text-xs px-2 py-1 rounded-full">
-              {COUNTRIES.find((c) => c.code === country)?.label}
+              {COUNTRY_CODES[country] || `+${country}`}
             </span>
           )}
           {country === '92' && region && (

@@ -1,0 +1,153 @@
+================================================================================
+VIDEO GENERATION RETENTION ANALYSIS
+================================================================================
+Generated: 2026-04-28T11:23:55.242363
+
+Step 1: Loading extracted data...
+Total segmented users: 5,877
+
+Segment breakdown:
+  video_only                    :     25 (  0.4%)
+  lp_then_video                 :     83 (  1.4%)
+  video_and_lp_concurrent       :      9 (  0.2%)
+  lp_only                       :  1,934 ( 32.9%)
+  neither                       :  3,826 ( 65.1%)
+
+Step 2: Computing retention curves (weeks 0–8)...
+
+Retention Rates by Segment and Week:
+--------------------------------------------------------------------------------
+  video_only:  W0=100.0%  W1=28.0%  W2=20.0%  W4=4.0%  W8=0.0%
+  lp_then_video:  W0=100.0%  W1=44.6%  W2=49.4%  W4=34.9%  W8=12.0%
+  video_and_lp_concurrent:  W0=100.0%  W1=44.4%  W2=33.3%  W4=22.2%  W8=22.2%
+  lp_only:  W0=100.0%  W1=20.0%  W2=15.5%  W4=6.7%  W8=3.2%
+  neither:  W0=72.4%  W1=12.3%  W2=7.7%  W4=2.1%  W8=0.5%
+
+Step 3: Building correlation data...
+Total users with activity data: 5,877
+
+================================================================================
+SEGMENT STATISTICS
+================================================================================
+
+VIDEO_ONLY
+----------------------------------------
+  Count: 25 users
+  Avg active days: 2.8 (±2.3)
+  Avg active weeks: 2.0 (±1.0)
+  Median active days: 2
+  Max active days: 9
+
+LP_THEN_VIDEO
+----------------------------------------
+  Count: 83 users
+  Avg active days: 9.1 (±10.5)
+  Avg active weeks: 4.6 (±3.5)
+  Median active days: 7
+  Max active days: 76
+
+VIDEO_AND_LP_CONCURRENT
+----------------------------------------
+  Count: 9 users
+  Avg active days: 9.6 (±8.0)
+  Avg active weeks: 5.8 (±3.9)
+  Median active days: 6
+  Max active days: 25
+
+LP_ONLY
+----------------------------------------
+  Count: 1,934 users
+  Avg active days: 2.9 (±3.8)
+  Avg active weeks: 2.0 (±1.7)
+  Median active days: 2
+  Max active days: 78
+
+NEITHER
+----------------------------------------
+  Count: 3,826 users
+  Avg active days: 1.4 (±1.8)
+  Avg active weeks: 1.1 (±1.0)
+  Median active days: 1
+  Max active days: 32
+
+================================================================================
+CORRELATION: VIDEO USAGE vs RETENTION
+================================================================================
+
+Video Users (n=117):
+  Mean active days: 7.8
+  Mean active weeks: 4.1
+  Median active days: 6
+
+Non-Video Users (n=5,760):
+  Mean active days: 1.9
+  Mean active weeks: 1.4
+  Median active days: 1
+
+Pearson Correlation (video usage vs active days):
+  r = 0.2630
+  p-value = 1.44e-93
+  *** SIGNIFICANT ***
+
+T-test (video users vs non-video, active days):
+  t = 20.8936
+  p-value = 1.44e-93
+  *** SIGNIFICANT DIFFERENCE ***
+
+================================================================================
+GENERATING CHARTS
+================================================================================
+  Saved: retention_charts/retention_curves.png
+  Saved: retention_charts/active_days_by_segment.png
+  Saved: retention_charts/video_vs_activity.png
+  Saved: retention_charts/active_weeks_by_segment.png
+  Saved: retention_charts/active_days_distribution.png
+
+================================================================================
+SUMMARY & CONCLUSIONS
+================================================================================
+
+1. RETENTION COMPARISON
+
+   Week 1:
+     video_only          :  28.0%
+     lp_then_video       :  44.6%
+     lp_only             :  20.0%
+
+   Week 2:
+     video_only          :  20.0%
+     lp_then_video       :  49.4%
+     lp_only             :  15.5%
+
+   Week 4:
+     video_only          :   4.0%
+     lp_then_video       :  34.9%
+     lp_only             :   6.7%
+
+   Week 8:
+     video_only          :   0.0%
+     lp_then_video       :  12.0%
+     lp_only             :   3.2%
+
+2. VIDEO USAGE IMPACT ON ACTIVITY
+   Video users average 7.8 active days
+   Non-video users average 1.9 active days
+   Difference: +5.9 days (+311.7%)
+
+3. STATISTICAL SIGNIFICANCE
+   [YES] Video usage shows statistically significant positive correlation with retention
+     Correlation coefficient r = 0.2630, p-value = 1.44e-93
+   [YES] Video users differ significantly from non-video users (t-test p=1.44e-93)
+
+4. SEGMENT BREAKDOWN
+   Video-only users: dict_values
+     video_only          :     25 users (  0.4%) — avg 2.8 active days
+     lp_then_video       :     83 users (  1.4%) — avg 9.1 active days
+     lp_only             :  1,934 users ( 32.9%) — avg 2.9 active days
+
+================================================================================
+Analysis complete. Output:
+  Report: retention_analysis_report.txt
+  Charts: retention_charts/
+================================================================================
+
