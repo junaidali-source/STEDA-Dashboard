@@ -67,10 +67,11 @@ export default function Dashboard() {
       try {
         const res = await fetch('/api/auth/session', { credentials: 'include' })
         if (res.ok) {
-          setSession(await res.json())
+          const data = await res.json()
+          setSession(data)
         }
-      } catch {
-        // Session not available
+      } catch (e) {
+        console.error('Failed to fetch session:', e)
       }
     }
     getSession()
@@ -125,7 +126,7 @@ export default function Dashboard() {
     )
   }
 
-  const isAdmin = session?.role === 'admin'
+  const isAdmin = session ? session.role === 'admin' : null
 
   return (
     <div className="space-y-8">
@@ -178,33 +179,31 @@ export default function Dashboard() {
         ) : null}
       </div>
 
-      {/* Tabs */}
-      {isAdmin && (
-        <div className="flex gap-2 border-b border-slate-200">
-          <button
-            type="button"
-            onClick={() => router.push('?tab=overview')}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition ${
-              tab === 'overview'
-                ? 'border-indigo-500 text-indigo-600'
-                : 'border-transparent text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Overview
-          </button>
-          <button
-            type="button"
-            onClick={() => router.push(`?tab=costs${from ? `&from=${from}` : ''}${to ? `&to=${to}` : ''}`)}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition ${
-              tab === 'costs'
-                ? 'border-indigo-500 text-indigo-600'
-                : 'border-transparent text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Costs
-          </button>
-        </div>
-      )}
+      {/* Tabs - Admin only */}
+      <div className="flex gap-2 border-b border-slate-200">
+        <button
+          type="button"
+          onClick={() => router.push('?tab=overview')}
+          className={`px-4 py-3 text-sm font-medium border-b-2 transition ${
+            tab === 'overview'
+              ? 'border-indigo-500 text-indigo-600'
+              : 'border-transparent text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          Overview
+        </button>
+        <button
+          type="button"
+          onClick={() => router.push(`?tab=costs${from ? `&from=${from}` : ''}${to ? `&to=${to}` : ''}`)}
+          className={`px-4 py-3 text-sm font-medium border-b-2 transition ${
+            tab === 'costs'
+              ? 'border-indigo-500 text-indigo-600'
+              : 'border-transparent text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          Costs (Admin)
+        </button>
+      </div>
 
       {/* Overview Tab */}
       {tab !== 'costs' && (
@@ -248,7 +247,19 @@ export default function Dashboard() {
       )}
 
       {/* Costs Tab (Admin Only) */}
-      {tab === 'costs' && isAdmin && <CostTracker />}
+      {tab === 'costs' && (
+        <>
+          {isAdmin === null ? (
+            <Spinner />
+          ) : isAdmin ? (
+            <CostTracker />
+          ) : (
+            <div className="rounded-xl bg-yellow-50 border border-yellow-200 p-6 text-yellow-700 text-sm">
+              <strong>Admin access required.</strong> The Costs tab is only available to administrators.
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }
