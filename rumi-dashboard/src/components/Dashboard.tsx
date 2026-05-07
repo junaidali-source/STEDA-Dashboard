@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import KPICards from './KPICards'
 import GrowthChart from './GrowthChart'
 import FeatureChart from './FeatureChart'
 import SchoolsTable from './SchoolsTable'
 import DiscoverabilityPanel from './DiscoverabilityPanel'
 import UserUsageTable from './UserUsageTable'
+import CostTracker from './CostTracker'
 
 function buildQS(params: Record<string, string>): string {
   const p = new URLSearchParams()
@@ -33,8 +34,13 @@ interface KPIData {
   reading: number
 }
 
+interface UserSession {
+  role: string
+}
+
 export default function Dashboard() {
   const sp           = useSearchParams()
+  const router       = useRouter()
   const country      = sp.get('country')      || 'all'
   const region       = sp.get('region')       || ''
   const school       = sp.get('school')       || ''
@@ -43,6 +49,7 @@ export default function Dashboard() {
   const to           = sp.get('to')           || ''
   const compare_from = sp.get('compare_from') || ''
   const compare_to   = sp.get('compare_to')   || ''
+  const tab          = sp.get('tab')          || 'overview'
 
   const [kpis,     setKpis]     = useState<KPIData | null>(null)
   const [kpisPrev, setKpisPrev] = useState<KPIData | null>(null)
@@ -52,6 +59,22 @@ export default function Dashboard() {
   const [disc,     setDisc]     = useState<unknown[] | null>(null)
   const [users,    setUsers]    = useState<unknown[] | null>(null)
   const [error,    setError]    = useState<string | null>(null)
+  const [session,  setSession]  = useState<UserSession | null>(null)
+
+  // Get user session from API
+  useEffect(() => {
+    const getSession = async () => {
+      try {
+        const res = await fetch('/api/auth/session', { credentials: 'include' })
+        if (res.ok) {
+          setSession(await res.json())
+        }
+      } catch {
+        // Session not available
+      }
+    }
+    getSession()
+  }, [])
 
   const fetchAll = useCallback(async () => {
     setKpis(null); setError(null)
@@ -84,6 +107,16 @@ export default function Dashboard() {
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
+  const updateFilter = (key: string, value: string) => {
+    const params = new URLSearchParams(sp.toString())
+    if (value) {
+      params.set(key, value)
+    } else {
+      params.delete(key)
+    }
+    router.push(`?${params.toString()}`)
+  }
+
   if (error) {
     return (
       <div className="rounded-xl bg-red-50 border border-red-200 p-6 text-red-700 text-sm">
@@ -92,43 +125,130 @@ export default function Dashboard() {
     )
   }
 
+  const isAdmin = session?.role === 'admin'
+
   return (
     <div className="space-y-8">
-      {!kpis ? (
-        <Spinner />
-      ) : (
-        <div className="border-t border-slate-200 pt-8">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 mb-4">Platform analytics</p>
-          <KPICards data={kpis} previous={kpisPrev} />
+      {/* Date Range Filters */}
+      <div className="bg-white rounded-xl border p-4 flex flex-wrap gap-4 items-end">
+        <div>
+          <label htmlFor="from-date" className="text-xs font-semibold text-slate-500 uppercase block mb-2">From Date</label>
+          <input
+            id="from-date"
+            type="date"
+            value={from}
+            onChange={(e) => updateFilter('from', e.target.value)}
+            className="px-3 py-2 border border-slate-200 rounded-lg text-sm"
+          />
+        </div>
+        <div>
+          <label htmlFor="to-date" className="text-xs font-semibold text-slate-500 uppercase block mb-2">To Date</label>
+          <input
+            id="to-date"
+            type="date"
+            value={to}
+            onChange={(e) => updateFilter('to', e.target.value)}
+            className="px-3 py-2 border border-slate-200 rounded-lg text-sm"
+          />
+        </div>
+        <div>
+          <label htmlFor="country-code" className="text-xs font-semibold text-slate-500 uppercase block mb-2">Country Code</label>
+          <input
+            id="country-code"
+            type="text"
+            placeholder="+92"
+            value={country}
+            onChange={(e) => updateFilter('country', e.target.value || 'all')}
+            className="px-3 py-2 border border-slate-200 rounded-lg text-sm w-32"
+            maxLength={3}
+            title="Enter country code (e.g., 92 for Pakistan)"
+          />
+        </div>
+        {from || to ? (
+          <button
+            type="button"
+            onClick={() => {
+              updateFilter('from', '')
+              updateFilter('to', '')
+            }}
+            className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200"
+          >
+            Clear
+          </button>
+        ) : null}
+      </div>
+
+      {/* Tabs */}
+      {isAdmin && (
+        <div className="flex gap-2 border-b border-slate-200">
+          <button
+            type="button"
+            onClick={() => router.push('?tab=overview')}
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition ${
+              tab === 'overview'
+                ? 'border-indigo-500 text-indigo-600'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Overview
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push(`?tab=costs${from ? `&from=${from}` : ''}${to ? `&to=${to}` : ''}`)}
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition ${
+              tab === 'costs'
+                ? 'border-indigo-500 text-indigo-600'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Costs
+          </button>
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {growth ? (
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          <GrowthChart data={growth as any} />
-        ) : <div className="bg-white rounded-xl border p-5"><Spinner /></div>}
+      {/* Overview Tab */}
+      {tab !== 'costs' && (
+        <>
+          {!kpis ? (
+            <Spinner />
+          ) : (
+            <div className="border-t border-slate-200 pt-8">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 mb-4">Platform analytics</p>
+              <KPICards data={kpis} previous={kpisPrev} />
+            </div>
+          )}
 
-        {features ? (
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          <FeatureChart data={features as any} />
-        ) : <div className="bg-white rounded-xl border p-5"><Spinner /></div>}
-      </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {growth ? (
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              <GrowthChart data={growth as any} />
+            ) : <div className="bg-white rounded-xl border p-5"><Spinner /></div>}
 
-      {schools ? (
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        <SchoolsTable data={schools as any} />
-      ) : <div className="bg-white rounded-xl border p-5"><Spinner /></div>}
+            {features ? (
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              <FeatureChart data={features as any} />
+            ) : <div className="bg-white rounded-xl border p-5"><Spinner /></div>}
+          </div>
 
-      {disc ? (
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        <DiscoverabilityPanel data={disc as any} />
-      ) : <div className="bg-white rounded-xl border p-5"><Spinner /></div>}
+          {schools ? (
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            <SchoolsTable data={schools as any} />
+          ) : <div className="bg-white rounded-xl border p-5"><Spinner /></div>}
 
-      {users ? (
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        <UserUsageTable data={users as any} />
-      ) : <div className="bg-white rounded-xl border p-5"><Spinner /></div>}
+          {disc ? (
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            <DiscoverabilityPanel data={disc as any} />
+          ) : <div className="bg-white rounded-xl border p-5"><Spinner /></div>}
+
+          {users ? (
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            <UserUsageTable data={users as any} />
+          ) : <div className="bg-white rounded-xl border p-5"><Spinner /></div>}
+        </>
+      )}
+
+      {/* Costs Tab (Admin Only) */}
+      {tab === 'costs' && isAdmin && <CostTracker />}
     </div>
   )
 }
