@@ -6,7 +6,9 @@ import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Cart
 
 interface CostData {
   feature: string
-  count: number
+  completed: number
+  failed: number
+  completion_rate: string
   unit_cost: number
   total_cost: number
 }
@@ -142,6 +144,25 @@ export default function CostTracker() {
         </div>
       </div>
 
+      {/* Cost-to-Pipeline-Health Ratio */}
+      <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-6">
+        <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-4">⚡ Cost-to-Pipeline-Health Ratio</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <p className="text-sm text-slate-600 mb-2">What This Shows:</p>
+            <p className="text-sm text-slate-700">
+              Only <strong>completed requests incur costs</strong>. Failed requests don't cost us. This ratio shows how efficiently we're converting requests to successful completions.
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-slate-600 mb-2">Key Insight:</p>
+            <p className="text-sm text-slate-700">
+              A healthy ratio means you're paying primarily for successful deliveries. High completion rates = more efficient platform.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Feature Breakdown Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Feature Cost Pie */}
@@ -187,6 +208,44 @@ export default function CostTracker() {
             </BarChart>
           </ResponsiveContainer>
         </div>
+      </div>
+
+      {/* Pipeline Health by Feature */}
+      <div className="bg-white rounded-xl border p-6">
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-4">Pipeline Health (Completion Rates)</p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="border-b">
+              <tr className="text-left text-xs font-semibold text-slate-500 uppercase">
+                <th className="px-4 py-3">Feature</th>
+                <th className="px-4 py-3 text-right">Completed</th>
+                <th className="px-4 py-3 text-right">Failed</th>
+                <th className="px-4 py-3 text-right">Completion %</th>
+                <th className="px-4 py-3 text-right">Cost per Completed</th>
+                <th className="px-4 py-3 text-right">Total Cost</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {data.feature_costs.map((feature, idx) => (
+                <tr key={idx} className="hover:bg-slate-50">
+                  <td className="px-4 py-3 font-medium text-slate-900">{FEATURE_NAMES[feature.feature] || feature.feature}</td>
+                  <td className="px-4 py-3 text-right text-slate-600">{feature.completed}</td>
+                  <td className="px-4 py-3 text-right text-red-600">{feature.failed}</td>
+                  <td className="px-4 py-3 text-right font-semibold">
+                    <span className={feature.completion_rate >= 80 ? 'text-green-600' : feature.completion_rate >= 60 ? 'text-amber-600' : 'text-red-600'}>
+                      {feature.completion_rate}%
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right text-slate-600">${feature.unit_cost}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-slate-900">{formatCurrency(feature.total_cost)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-xs text-slate-500 mt-4 italic">
+          💡 Note: Only completed requests incur costs. Failed requests have zero cost. Higher completion rates indicate better pipeline health and more efficient spending.
+        </p>
       </div>
 
       {/* Daily Cost Trend */}

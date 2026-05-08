@@ -63,11 +63,68 @@ export async function GET(req: Request) {
     const readingRes = await pool.query(readingQuery, p)
     const readingCount = readingRes.rows[0]?.cnt || 0
 
+    // Get failure counts to show pipeline health
+    const videoFailedQuery = `SELECT COUNT(*)::int as cnt FROM video_requests WHERE status != 'completed' AND ${userWhere('u')} ${dateWhere('vr')}`.replace('${userWhere(', `SELECT COUNT(*)::int as cnt FROM video_requests vr JOIN users u ON vr.user_id = u.id WHERE vr.status != 'completed' AND ${userWhere('u')} ${dateWhere('vr')}`).split('`SELECT')[1] ?
+      await pool.query(`SELECT COUNT(*)::int as cnt FROM video_requests vr JOIN users u ON vr.user_id = u.id WHERE vr.status != 'completed' AND ${userWhere('u')} ${dateWhere('vr')}`, p)
+      : { rows: [{ cnt: 0 }] }
+
+    const videoFailedRes = await pool.query(
+      `SELECT COUNT(*)::int as cnt FROM video_requests vr JOIN users u ON vr.user_id = u.id WHERE vr.status != 'completed' AND ${userWhere('u')} ${dateWhere('vr')}`,
+      p
+    )
+    const videoFailed = videoFailedRes.rows[0]?.cnt || 0
+
+    const lessonFailedRes = await pool.query(
+      `SELECT COUNT(*)::int as cnt FROM lesson_plan_requests lp JOIN users u ON lp.user_id = u.id WHERE lp.status != 'completed' AND ${userWhere('u')} ${dateWhere('lp')}`,
+      p
+    )
+    const lessonFailed = lessonFailedRes.rows[0]?.cnt || 0
+
+    const coachingFailedRes = await pool.query(
+      `SELECT COUNT(*)::int as cnt FROM coaching_sessions cs JOIN users u ON cs.user_id = u.id WHERE cs.status != 'completed' AND ${userWhere('u')} ${dateWhere('cs')}`,
+      p
+    )
+    const coachingFailed = coachingFailedRes.rows[0]?.cnt || 0
+
+    const readingFailedRes = await pool.query(
+      `SELECT COUNT(*)::int as cnt FROM reading_assessments ra JOIN users u ON ra.user_id = u.id WHERE ra.status != 'completed' AND ${userWhere('u')} ${dateWhere('ra')}`,
+      p
+    )
+    const readingFailed = readingFailedRes.rows[0]?.cnt || 0
+
     const featureCosts = [
-      { feature: 'video', count: videoCount, unit_cost: 2.09, total_cost: videoCount * 2.09 },
-      { feature: 'lesson_plan', count: lessonCount, unit_cost: 0.32, total_cost: lessonCount * 0.32 },
-      { feature: 'coaching', count: coachingCount, unit_cost: 0.23, total_cost: coachingCount * 0.23 },
-      { feature: 'reading', count: readingCount, unit_cost: 0.02, total_cost: readingCount * 0.02 },
+      {
+        feature: 'video',
+        completed: videoCount,
+        failed: videoFailed,
+        completion_rate: videoCount + videoFailed > 0 ? ((videoCount / (videoCount + videoFailed)) * 100).toFixed(1) : 0,
+        unit_cost: 2.09,
+        total_cost: videoCount * 2.09
+      },
+      {
+        feature: 'lesson_plan',
+        completed: lessonCount,
+        failed: lessonFailed,
+        completion_rate: lessonCount + lessonFailed > 0 ? ((lessonCount / (lessonCount + lessonFailed)) * 100).toFixed(1) : 0,
+        unit_cost: 0.32,
+        total_cost: lessonCount * 0.32
+      },
+      {
+        feature: 'coaching',
+        completed: coachingCount,
+        failed: coachingFailed,
+        completion_rate: coachingCount + coachingFailed > 0 ? ((coachingCount / (coachingCount + coachingFailed)) * 100).toFixed(1) : 0,
+        unit_cost: 0.23,
+        total_cost: coachingCount * 0.23
+      },
+      {
+        feature: 'reading',
+        completed: readingCount,
+        failed: readingFailed,
+        completion_rate: readingCount + readingFailed > 0 ? ((readingCount / (readingCount + readingFailed)) * 100).toFixed(1) : 0,
+        unit_cost: 0.02,
+        total_cost: readingCount * 0.02
+      },
     ]
 
     // Partner costs - no date filter (show costs across all time)
