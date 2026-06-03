@@ -5,6 +5,10 @@ import { getDistrictLatLng, normalizeStedaDistrict } from '@/lib/steda-district-
 
 export const dynamic = 'force-dynamic'
 
+interface CacheEntry { data: unknown; timestamp: number }
+const g = global as typeof global & { _onboardingDetailCache?: CacheEntry }
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+
 function dedupeTeachers(list: SteadaTeacher[]): SteadaTeacher[] {
   const m = new Map<string, SteadaTeacher>()
   for (const t of list) {
@@ -23,6 +27,10 @@ function titleDistrictLabel(key: string): string {
 
 export async function GET() {
   try {
+    if (g._onboardingDetailCache && Date.now() - g._onboardingDetailCache.timestamp < CACHE_TTL) {
+      return NextResponse.json(g._onboardingDetailCache.data)
+    }
+
     const { teachers: rawTeachers } = getSteadaData()
     const teachers = dedupeTeachers(rawTeachers)
     const phones = teachers.map((t) => t.phone)
@@ -130,7 +138,7 @@ export async function GET() {
       return (a.district || '').localeCompare(b.district || '')
     })
 
-    return NextResponse.json({
+    const result = {
       totalListed,
       totalJoined,
       totalEngaged,
@@ -139,7 +147,9 @@ export async function GET() {
       engagementPct,
       districts,
       teachers: teacherRows,
-    })
+    }
+    g._onboardingDetailCache = { data: result, timestamp: Date.now() }
+    return NextResponse.json(result)
   } catch (e: unknown) {
     return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 })
   }

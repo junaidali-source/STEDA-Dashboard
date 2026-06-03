@@ -4,6 +4,11 @@ import { getFilteredStedaPhones, stedaScopeFromSearchParams } from '@/lib/steda-
 
 export const dynamic = 'force-dynamic'
 
+interface CacheEntry { data: unknown; timestamp: number }
+const g = global as typeof global & { _engagementDepthCache?: Map<string, CacheEntry> }
+if (!g._engagementDepthCache) g._engagementDepthCache = new Map()
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+
 export async function GET(req: NextRequest) {
   try {
     const sp   = new URL(req.url).searchParams
@@ -11,6 +16,12 @@ export async function GET(req: NextRequest) {
     const to   = sp.get('to')   || null
 
     const { region, district } = stedaScopeFromSearchParams(sp)
+    const cacheKey = `${region}|${district}|${from}|${to}`
+    const cached = g._engagementDepthCache?.get(cacheKey)
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return NextResponse.json(cached.data)
+    }
+
     const phones = await getFilteredStedaPhones(region, district)
     const idsRes = await pool.query(
       `SELECT id FROM users WHERE phone_number = ANY($1::text[]) AND COALESCE(is_test_user, false) = false`,
@@ -42,6 +53,7 @@ export async function GET(req: NextRequest) {
               COUNT(*)::int AS teachers
        FROM feature_counts GROUP BY feature_count ORDER BY feature_count`, p
     )
+    g._engagementDepthCache?.set(cacheKey, { data: rows, timestamp: Date.now() })
     return NextResponse.json(rows)
   } catch (e: unknown) {
     return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 })
