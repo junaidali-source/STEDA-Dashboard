@@ -4,6 +4,7 @@ import { getFilteredStedaPhones, stedaScopeFromSearchParams } from '@/lib/steda-
 
 export const dynamic = 'force-dynamic'
 
+// CSV export with correct column mapping
 function escapeCSV(str: string | number | null | undefined): string {
   if (str === null || str === undefined) return ''
   const s = String(str)
