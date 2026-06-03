@@ -77,19 +77,28 @@ export default function StedaDashboard() {
     return qs ? `?${qs}` : ''
   }, [from, to, district])
 
+  const safeJsonFetch = useCallback(async (url: string) => {
+    const res = await fetch(url)
+    if (!res.ok) {
+      const text = await res.text()
+      throw new Error(`${res.status}: ${text.substring(0, 100)}`)
+    }
+    return res.json()
+  }, [])
+
   const fetchAll = useCallback(async () => {
     const q = stedaQuery()
     try {
       const [ov, di, de, tl, se, ad, dp, tr, sc] = await Promise.all([
-        fetch(`/api/steda/overview${q}`).then(r => r.json()),
-        fetch(`/api/steda/districts${q}`).then(r => r.json()),
-        fetch(`/api/steda/demographics${q}`).then(r => r.json()),
-        fetch(`/api/steda/timeline${q}`).then(r => r.json()),
-        fetch(`/api/steda/sentiment`).then(r => r.json()),
-        fetch(`/api/steda/feature-adoption${q}`).then(r => r.json()),
-        fetch(`/api/steda/engagement-depth${q}`).then(r => r.json()),
-        fetch(`/api/steda/feature-trends${q}`).then(r => r.json()),
-        fetch(`/api/steda/top-schools${q}`).then(r => r.json()),
+        safeJsonFetch(`/api/steda/overview${q}`),
+        safeJsonFetch(`/api/steda/districts${q}`),
+        safeJsonFetch(`/api/steda/demographics${q}`),
+        safeJsonFetch(`/api/steda/timeline${q}`),
+        safeJsonFetch(`/api/steda/sentiment`),
+        safeJsonFetch(`/api/steda/feature-adoption${q}`),
+        safeJsonFetch(`/api/steda/engagement-depth${q}`),
+        safeJsonFetch(`/api/steda/feature-trends${q}`),
+        safeJsonFetch(`/api/steda/top-schools${q}`),
       ])
       if (ov.error) throw new Error(ov.error)
       setOverview(ov)
@@ -106,19 +115,18 @@ export default function StedaDashboard() {
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Unknown error')
     }
-  }, [stedaQuery])
+  }, [stedaQuery, safeJsonFetch])
 
   const fetchAllRef = useRef(fetchAll)
   fetchAllRef.current = fetchAll
 
   useEffect(() => {
-    fetch('/api/steda/filters')
-      .then((r) => r.json())
+    safeJsonFetch('/api/steda/filters')
       .then((d) => {
         if (Array.isArray(d.districts)) setDistrictOptions(d.districts)
       })
-      .catch(() => {})
-  }, [])
+      .catch((err) => console.error('Failed to load filters:', err))
+  }, [safeJsonFetch])
 
   // Load + refresh when date range or geography changes; 5m poll; WhatsApp realtime for sentiment
   useEffect(() => {
