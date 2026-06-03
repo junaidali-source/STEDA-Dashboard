@@ -225,6 +225,16 @@ export default function StedaDashboard() {
             className="px-3 py-1 bg-teal-700 hover:bg-teal-600 text-white text-xs rounded font-medium transition-colors">
             Apply
           </button>
+          <button type="button" onClick={() => {
+            const q = new URLSearchParams()
+            if (from) q.set('from', from)
+            if (to) q.set('to', to)
+            if (district) q.set('district', district)
+            window.location.href = `/api/steda/export-csv?${q.toString()}`
+          }}
+            className="px-3 py-1 bg-amber-600 hover:bg-amber-500 text-white text-xs rounded font-medium transition-colors">
+            ⬇ CSV
+          </button>
           <span className="text-xs text-gray-500 shrink-0">{refreshLabel}</span>
         </div>
       </div>
