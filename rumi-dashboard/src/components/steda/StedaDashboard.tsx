@@ -89,7 +89,8 @@ export default function StedaDashboard() {
   const fetchAll = useCallback(async () => {
     const q = stedaQuery()
     try {
-      const [ov, di, de, tl, se, ad, dp, tr, sc] = await Promise.all([
+      // Load critical endpoints first (avoid timeout)
+      const [ov, di, de, tl, se, ad, dp, tr] = await Promise.all([
         safeJsonFetch(`/api/steda/overview${q}`),
         safeJsonFetch(`/api/steda/districts${q}`),
         safeJsonFetch(`/api/steda/demographics${q}`),
@@ -98,7 +99,6 @@ export default function StedaDashboard() {
         safeJsonFetch(`/api/steda/feature-adoption${q}`),
         safeJsonFetch(`/api/steda/engagement-depth${q}`),
         safeJsonFetch(`/api/steda/feature-trends${q}`),
-        safeJsonFetch(`/api/steda/top-schools${q}`),
       ])
       if (ov.error) throw new Error(ov.error)
       setOverview(ov)
@@ -109,9 +109,13 @@ export default function StedaDashboard() {
       setAdoption(Array.isArray(ad) ? ad : [])
       setDepth(Array.isArray(dp) ? dp : [])
       setTrends(Array.isArray(tr) ? tr : [])
-      setSchools(Array.isArray(sc) ? sc : [])
       setLastRefresh(new Date())
       loadedRef.current = true
+
+      // Load top-schools separately after main data
+      safeJsonFetch(`/api/steda/top-schools${q}`)
+        .then((sc) => setSchools(Array.isArray(sc) ? sc : []))
+        .catch((e) => console.error('Failed to load top-schools:', e))
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Unknown error')
     }
