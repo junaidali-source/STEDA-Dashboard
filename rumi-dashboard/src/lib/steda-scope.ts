@@ -1,6 +1,11 @@
 import { pool } from '@/lib/db'
 import { getSteadaData, type SteadaTeacher } from '@/lib/steda-phones'
 
+interface CacheEntry { phones: string[]; timestamp: number }
+const g = global as typeof global & { _phonesCache?: Map<string, CacheEntry> }
+if (!g._phonesCache) g._phonesCache = new Map()
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+
 export function stedaScopeFromSearchParams(sp: URLSearchParams): { region: string; district: string } {
   return {
     region: sp.get('region')?.trim() || '',
@@ -20,6 +25,7 @@ function cohortRegionWhere(cAlias: string, uAlias: string, regParam: string): st
 
 /**
  * STEDA cohort phones after optional CSV district filter and optional `users.region` filter.
+ * Results cached for 5 minutes to avoid repeated database queries.
  */
 export async function getFilteredStedaPhones(region: string, district: string): Promise<string[]> {
   const { teachers } = getSteadaData()
@@ -32,6 +38,12 @@ export async function getFilteredStedaPhones(region: string, district: string): 
   const reg = (region || '').trim()
   if (!reg || phones.length === 0) return phones
 
+  const cacheKey = `${district}|${region}`
+  const cached = g._phonesCache?.get(cacheKey)
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.phones
+  }
+
   try {
     const { rows } = await pool.query<{ phone: string }>(
       `WITH cohort AS (SELECT unnest($1::text[]) AS phone)
@@ -41,9 +53,12 @@ export async function getFilteredStedaPhones(region: string, district: string): 
        WHERE ${cohortRegionWhere('c', 'u', '$2')}`,
       [phones, reg]
     )
-    return rows.map((r) => r.phone)
+    const result = rows.map((r) => r.phone)
+    g._phonesCache?.set(cacheKey, { phones: result, timestamp: Date.now() })
+    return result
   } catch (err) {
     console.error('Region filter failed, returning all STEDA phones:', err)
+    g._phonesCache?.set(cacheKey, { phones, timestamp: Date.now() })
     return phones
   }
 }
