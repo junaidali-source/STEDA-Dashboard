@@ -54,8 +54,8 @@ export async function GET(req: NextRequest) {
        LEFT JOIN video_requests vr ON vr.user_id=u.id ${dc.replace(/u\./g, 'vr.')}
        LEFT JOIN image_analysis_requests ia ON ia.user_id=u.id ${dc.replace(/u\./g, 'ia.')}
        WHERE u.phone_number = ANY($1::text[]) AND COALESCE(u.is_test_user, false) = false
-       GROUP BY u.id, u.phone_number, u.full_name, u.school_name, u.region
-       ORDER BY total_features DESC, u.full_name`,
+       GROUP BY u.id, u.phone_number, u.name, u.school_name, u.region
+       ORDER BY total_features DESC, u.name`,
       p
     )
 
