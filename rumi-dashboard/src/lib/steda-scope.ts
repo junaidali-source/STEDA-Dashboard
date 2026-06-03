@@ -20,27 +20,32 @@ function cohortRegionWhere(cAlias: string, uAlias: string, regParam: string): st
 
 /**
  * STEDA cohort phones after optional CSV district filter and optional `users.region` filter.
+ * Optimized: Do region filtering in-memory instead of database JOIN.
  */
 export async function getFilteredStedaPhones(region: string, district: string): Promise<string[]> {
   const { teachers } = getSteadaData()
   let subset = teachers
+
   if (district) {
     const d = district.trim().toLowerCase()
-    subset = teachers.filter((t) => t.district.trim().toLowerCase() === d)
+    subset = subset.filter((t) => t.district.trim().toLowerCase() === d)
   }
-  const phones = Array.from(new Set(subset.map((t) => t.phone)))
-  const reg = (region || '').trim()
-  if (!reg || phones.length === 0) return phones
 
-  const { rows } = await pool.query<{ phone: string }>(
-    `WITH cohort AS (SELECT unnest($1::text[]) AS phone)
-     SELECT c.phone::text
-     FROM cohort c
-     LEFT JOIN users u ON u.phone_number = c.phone AND COALESCE(u.is_test_user, false) = false
-     WHERE ${cohortRegionWhere('c', 'u', '$2')}`,
-    [phones, reg]
-  )
-  return rows.map((r) => r.phone)
+  if (region) {
+    const reg = region.trim().toLowerCase()
+    const { rows } = await pool.query<{ phone: string; region: string }>(
+      `SELECT DISTINCT phone_number as phone, region FROM users WHERE phone_number = ANY($1::text[]) AND COALESCE(is_test_user, false) = false`,
+      [subset.map((t) => t.phone)]
+    )
+    const phonesByRegion = new Map(rows.map((r) => [r.phone, r.region]))
+    subset = subset.filter((t) => {
+      const userRegion = phonesByRegion.get(t.phone)
+      if (!userRegion) return false
+      return userRegion.toLowerCase() === reg || (reg === 'islamabad' && ['federal', 'islamabad'].includes(userRegion.toLowerCase()))
+    })
+  }
+
+  return Array.from(new Set(subset.map((t) => t.phone)))
 }
 
 export async function getFilteredStedaTeachers(
