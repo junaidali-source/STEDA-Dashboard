@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
     const { rows } = await pool.query(
       `SELECT
          u.phone_number,
-         u.full_name,
+         COALESCE(u.name, '') AS name,
          u.school_name,
          u.region,
          COUNT(DISTINCT CASE WHEN lp.status='completed' THEN lp.id END)::int AS lesson_plans,
@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
     for (const row of rows) {
       csv.push([
         escapeCSV(row.phone_number),
-        escapeCSV(row.full_name),
+        escapeCSV(row.name),
         escapeCSV(row.school_name),
         escapeCSV(row.region),
         row.lesson_plans,
