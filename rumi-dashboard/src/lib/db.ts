@@ -85,3 +85,4 @@ export function filterParams(url: string): [string, string, string, string, stri
   const region  = sp.get('region')  || ''
   return [country, school, `%${school}%`, partner, from, to, region]
 }
+// Trigger redeploy for updated DB credentials
