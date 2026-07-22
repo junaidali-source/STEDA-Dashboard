@@ -29,6 +29,8 @@ interface Payload {
   notYet: number
   onboardedPct: number
   engagementPct: number
+  totalDistricts: number
+  districtsOnboarded: number
   districts: DistrictMapRow[]
   teachers: TeacherRow[]
 }
@@ -97,7 +99,7 @@ export default function StedaOnboardingSnapshot() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
         <div className="rounded-xl border border-slate-700 bg-slate-900 p-4 min-h-[112px] flex flex-col justify-between">
           <p className="text-[11px] font-semibold tracking-wide text-slate-300 uppercase">Teachers listed</p>
           <p className="text-3xl font-bold text-white tabular-nums leading-none">{data.totalListed.toLocaleString()}</p>
@@ -113,6 +115,13 @@ export default function StedaOnboardingSnapshot() {
         <div className="rounded-xl border border-cyan-700/70 bg-cyan-950/55 p-4 min-h-[112px] flex flex-col justify-between">
           <p className="text-[11px] font-semibold tracking-wide text-cyan-200 uppercase">Onboarding rate</p>
           <p className="text-3xl font-bold text-cyan-100 tabular-nums leading-none">{data.onboardedPct}%</p>
+        </div>
+        <div className="rounded-xl border border-fuchsia-700/70 bg-fuchsia-950/55 p-4 min-h-[112px] flex flex-col justify-between">
+          <p className="text-[11px] font-semibold tracking-wide text-fuchsia-200 uppercase">Districts onboarded</p>
+          <p className="text-3xl font-bold text-fuchsia-100 tabular-nums leading-none">
+            {data.districtsOnboarded.toLocaleString()}
+            <span className="text-base font-semibold text-fuchsia-200/80">/{data.totalDistricts.toLocaleString()}</span>
+          </p>
         </div>
         <div className="rounded-xl border border-indigo-700/70 bg-indigo-950/60 p-4 min-h-[112px] col-span-2 lg:col-span-1 flex flex-col justify-between">
           <p className="text-[11px] font-semibold tracking-wide text-indigo-200 uppercase">Engagement</p>

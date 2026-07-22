@@ -42,6 +42,8 @@ export async function GET() {
         notYet: 0,
         onboardedPct: 0,
         engagementPct: 0,
+        totalDistricts: 0,
+        districtsOnboarded: 0,
         districts: [] as unknown[],
         teachers: [] as unknown[],
       })
@@ -80,11 +82,12 @@ export async function GET() {
     type Agg = { listed: number; joined: number; engaged: number; label: string }
     const byDistrict = new Map<string, Agg>()
     for (const t of teachers) {
-      const key = normalizeStedaDistrict(t.district) || 'Unknown'
+      // Case-insensitive key so "Thatta" and "THATTA" merge into one row.
+      const normalized = normalizeStedaDistrict(t.district)
+      const key = normalized ? normalized.toLowerCase() : 'unknown'
       let cur = byDistrict.get(key)
       if (!cur) {
-        const raw = (t.district || '').trim()
-        cur = { listed: 0, joined: 0, engaged: 0, label: raw || titleDistrictLabel(key) }
+        cur = { listed: 0, joined: 0, engaged: 0, label: key === 'unknown' ? 'Unknown' : titleDistrictLabel(key) }
         byDistrict.set(key, cur)
       }
       cur.listed += 1
@@ -96,7 +99,7 @@ export async function GET() {
     }
 
     const districts = [...byDistrict.entries()].map(([districtKey, a]) => {
-      const [lat, lng] = getDistrictLatLng(districtKey === 'Unknown' ? '' : districtKey)
+      const [lat, lng] = getDistrictLatLng(districtKey === 'unknown' ? '' : districtKey)
       const onboardedPct = a.listed > 0 ? Math.round((a.joined / a.listed) * 100) : 0
       const engagementPct = a.joined > 0 ? Math.round((a.engaged / a.joined) * 100) : 0
       return {
@@ -122,6 +125,8 @@ export async function GET() {
     }).length
     const onboardedPct = totalListed > 0 ? Math.round((totalJoined / totalListed) * 100) : 0
     const engagementPct = totalJoined > 0 ? Math.round((totalEngaged / totalJoined) * 100) : 0
+    const totalDistricts = districts.length
+    const districtsOnboarded = districts.filter((d) => d.joined > 0).length
 
     const teacherRows = teachers.map((t) => ({
       phone: t.phone,
@@ -145,6 +150,8 @@ export async function GET() {
       notYet: totalListed - totalJoined,
       onboardedPct,
       engagementPct,
+      totalDistricts,
+      districtsOnboarded,
       districts,
       teachers: teacherRows,
     }
