@@ -10,6 +10,8 @@ const nextConfig = {
     outputFileTracingIncludes: {
       '/api/steda/**': ['./data/**'],
       '/steda': ['./data/**'],
+      '/api/onboarding-tracker/**': ['./data/**'],
+      '/onboarding-tracker': ['./data/**'],
     },
   },
 };

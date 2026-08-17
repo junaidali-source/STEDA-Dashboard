@@ -22,7 +22,10 @@ export default function LoginPage() {
     })
     const data = await res.json()
     if (!res.ok) { setError(data.error ?? 'Login failed'); setLoading(false); return }
-    router.push(data.role === 'steda' ? '/steda' : '/')
+    const landing = data.role === 'steda' ? '/steda'
+      : (data.role === 'principal' || data.role === 'deo') ? '/onboarding-tracker'
+      : '/'
+    router.push(landing)
     router.refresh()
   }
 

@@ -10,6 +10,7 @@ const ALL_TABS = [
   { href: '/steda/cohorts',  label: 'Cohorts',      roles: ['admin', 'steda'] },
   { href: '/coaching',       label: 'Coaching',     roles: ['admin', 'steda'] },
   { href: '/tracker',  label: 'Tracker',       roles: ['admin'] },
+  { href: '/onboarding-tracker', label: 'Onboarding Tracker', roles: ['admin', 'principal', 'deo'] },
 ]
 
 export default function NavTabs({ role }: { role: string }) {

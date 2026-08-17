@@ -23,6 +23,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/steda', request.url))
   }
 
+  // Principal / DEO: only the onboarding tracker and its API route are allowed
+  if ((session.role === 'principal' || session.role === 'deo') &&
+      !pathname.startsWith('/onboarding-tracker') &&
+      !pathname.startsWith('/api/onboarding-tracker')) {
+    return NextResponse.redirect(new URL('/onboarding-tracker', request.url))
+  }
+
   return NextResponse.next()
 }
 

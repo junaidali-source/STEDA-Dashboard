@@ -2,20 +2,26 @@ const SECRET = new TextEncoder().encode(
   process.env.AUTH_SECRET ?? 'rumi-dashboard-secret-2024'
 )
 
-export const USERS: Record<string, { password: string; role: 'admin' | 'steda' }> = {
-  'admin':       { password: 'Admin@1122', role: 'admin' },
-  'steda-admin': { password: 'steda@786',  role: 'steda' },
+export type Role = 'admin' | 'steda' | 'principal' | 'deo'
+
+// scope: for 'principal' the school name, for 'deo' the district name (matches
+// the `School` / `District` columns in data/Rumi_Onboarding_*.csv)
+export const USERS: Record<string, { password: string; role: Role; scope?: string }> = {
+  'admin':          { password: 'Admin@1122',   role: 'admin' },
+  'steda-admin':    { password: 'steda@786',    role: 'steda' },
+  'principal-jinnah': { password: 'Jinnah@2026', role: 'principal', scope: 'GGHS M.A. Jinnah Campus Latifabad No.11' },
+  'deo-hyderabad':    { password: 'Hyderabad@2026', role: 'deo',    scope: 'Hyderabad' },
 }
 
-export async function createSessionToken(username: string, role: string): Promise<string> {
-  const payload = btoa(JSON.stringify({ username, role, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 }))
+export async function createSessionToken(username: string, role: string, scope?: string): Promise<string> {
+  const payload = btoa(JSON.stringify({ username, role, scope, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 }))
   const key = await crypto.subtle.importKey('raw', SECRET, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
   const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload))
   const sigHex = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('')
   return `${payload}.${sigHex}`
 }
 
-export async function verifySessionToken(token: string): Promise<{ username: string; role: string } | null> {
+export async function verifySessionToken(token: string): Promise<{ username: string; role: string; scope?: string } | null> {
   try {
     const dotIdx = token.lastIndexOf('.')
     if (dotIdx === -1) return null
@@ -27,7 +33,7 @@ export async function verifySessionToken(token: string): Promise<{ username: str
     if (!valid) return null
     const data = JSON.parse(atob(payload))
     if (data.exp < Date.now()) return null
-    return { username: data.username, role: data.role }
+    return { username: data.username, role: data.role, scope: data.scope }
   } catch {
     return null
   }
@@ -36,5 +42,5 @@ export async function verifySessionToken(token: string): Promise<{ username: str
 export function validateCredentials(username: string, password: string) {
   const user = USERS[username]
   if (!user || user.password !== password) return null
-  return { role: user.role }
+  return { role: user.role, scope: user.scope }
 }
