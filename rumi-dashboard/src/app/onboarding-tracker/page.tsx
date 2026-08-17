@@ -1,7 +1,10 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { verifySessionToken } from '@/lib/auth'
-import { getScopedRoster, summarize, type OnboardingScope } from '@/lib/onboarding-tracker'
+import {
+  getScopedRoster, getLiveJoinStatus, resolveLiveStatus, summarizeLive,
+  type OnboardingScope, type LiveStatus,
+} from '@/lib/onboarding-tracker'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,13 +22,21 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
   )
 }
 
-function StatusPill({ status }: { status: string }) {
-  const onboarded = status.toLowerCase() === 'onboarded'
+const STATUS_LABEL: Record<LiveStatus, string> = {
+  active:  'Active',
+  joined:  'Onboarded',
+  pending: 'Pending',
+}
+
+function StatusPill({ status }: { status: LiveStatus }) {
+  const styles: Record<LiveStatus, string> = {
+    active:  'bg-emerald-500/15 text-emerald-400',
+    joined:  'bg-sky-500/15 text-sky-400',
+    pending: 'bg-amber-500/15 text-amber-400',
+  }
   return (
-    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-      onboarded ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'
-    }`}>
-      {status}
+    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${styles[status]}`}>
+      {STATUS_LABEL[status]}
     </span>
   )
 }
@@ -43,7 +54,15 @@ export default async function OnboardingTrackerPage() {
     null
 
   const rows = getScopedRoster(scope)
-  const stats = summarize(rows)
+  let liveStatus: Record<string, { joined: boolean; active: boolean }> = {}
+  let liveStatusError = false
+  try {
+    liveStatus = await getLiveJoinStatus(rows.map(r => r.whatsappIntl))
+  } catch (e) {
+    console.error('onboarding-tracker: live status lookup failed', e)
+    liveStatusError = true
+  }
+  const stats = summarizeLive(rows, liveStatus, liveStatusError)
 
   const scopeLabel =
     scope?.type === 'school'   ? scope.value :
@@ -57,11 +76,17 @@ export default async function OnboardingTrackerPage() {
         <p className="text-sm text-gray-400 mt-1">{scopeLabel}</p>
       </div>
 
+      {liveStatusError && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-5 py-3 text-sm text-amber-400">
+          Couldn&apos;t reach the live usage database — showing the last verified status snapshot instead of real-time data.
+        </div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard label="Total Staff" value={stats.total} />
-        <StatCard label="Onboarded" value={stats.onboarded} sub={`${stats.onboardedPct}% complete`} />
-        <StatCard label="Pending" value={stats.pending} />
-        <StatCard label="Schools" value={stats.schools} />
+        <StatCard label="Onboarded" value={stats.onboarded} sub={`${stats.onboardedPct}% have a Rumi account`} />
+        <StatCard label="Active" value={stats.active} sub="used a feature on Rumi" />
+        <StatCard label="Pending" value={stats.pending} sub="no Rumi account yet" />
       </div>
 
       <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
@@ -90,7 +115,7 @@ export default async function OnboardingTrackerPage() {
                   <td className="px-4 py-3 text-gray-400">{r.className || '—'}</td>
                   {scope?.type !== 'school' && <td className="px-4 py-3 text-gray-400">{r.school}</td>}
                   <td className="px-4 py-3 text-gray-400">{r.whatsappLocal || '—'}</td>
-                  <td className="px-6 py-3"><StatusPill status={r.status} /></td>
+                  <td className="px-6 py-3"><StatusPill status={resolveLiveStatus(r, liveStatus, liveStatusError)} /></td>
                 </tr>
               ))}
               {rows.length === 0 && (
