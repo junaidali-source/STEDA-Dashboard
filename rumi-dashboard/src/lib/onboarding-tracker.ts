@@ -137,6 +137,9 @@ interface LiveStatusInfo {
   lpLastDate: string | null
   coachingCompleted: number
   coachingLastDate: string | null
+  readingCompleted: number
+  videoCompleted: number
+  imageCompleted: number
 }
 
 // Cross-checks each teacher's WhatsApp number against real product usage:
@@ -156,7 +159,12 @@ export async function getLiveJoinStatus(phones: string[]): Promise<Record<string
   const idToPhone = new Map<string, string>()
   for (const row of usersRes.rows as { id: string; phone_number: string }[]) {
     idToPhone.set(row.id, row.phone_number)
-    map[row.phone_number] = { joined: true, active: false, lpCompleted: 0, lpLastDate: null, coachingCompleted: 0, coachingLastDate: null }
+    map[row.phone_number] = {
+      joined: true, active: false,
+      lpCompleted: 0, lpLastDate: null,
+      coachingCompleted: 0, coachingLastDate: null,
+      readingCompleted: 0, videoCompleted: 0, imageCompleted: 0,
+    }
   }
 
   const ids = Array.from(idToPhone.keys())
@@ -190,17 +198,43 @@ export async function getLiveJoinStatus(phones: string[]): Promise<Record<string
     if (row.completed > 0) map[phone].active = true
   }
 
-  const otherActiveRes = await pool.query(
-    `SELECT DISTINCT user_id FROM (
-       SELECT user_id FROM video_requests          WHERE user_id = ANY($1::uuid[]) AND status = 'completed'
-       UNION SELECT user_id FROM image_analysis_requests WHERE user_id = ANY($1::uuid[]) AND status = 'completed'
-       UNION SELECT user_id FROM reading_assessments     WHERE user_id = ANY($1::uuid[]) AND status = 'completed'
-     ) sub`,
+  const readingRes = await pool.query(
+    `SELECT user_id, COUNT(*)::int AS completed
+     FROM reading_assessments WHERE user_id = ANY($1::uuid[]) AND status = 'completed'
+     GROUP BY user_id`,
     [ids]
   )
-  for (const row of otherActiveRes.rows as { user_id: string }[]) {
+  for (const row of readingRes.rows as { user_id: string; completed: number }[]) {
     const phone = idToPhone.get(row.user_id)
-    if (phone) map[phone].active = true
+    if (!phone) continue
+    map[phone].readingCompleted = row.completed
+    if (row.completed > 0) map[phone].active = true
+  }
+
+  const videoRes = await pool.query(
+    `SELECT user_id, COUNT(*)::int AS completed
+     FROM video_requests WHERE user_id = ANY($1::uuid[]) AND status = 'completed'
+     GROUP BY user_id`,
+    [ids]
+  )
+  for (const row of videoRes.rows as { user_id: string; completed: number }[]) {
+    const phone = idToPhone.get(row.user_id)
+    if (!phone) continue
+    map[phone].videoCompleted = row.completed
+    if (row.completed > 0) map[phone].active = true
+  }
+
+  const imageRes = await pool.query(
+    `SELECT user_id, COUNT(*)::int AS completed
+     FROM image_analysis_requests WHERE user_id = ANY($1::uuid[]) AND status = 'completed'
+     GROUP BY user_id`,
+    [ids]
+  )
+  for (const row of imageRes.rows as { user_id: string; completed: number }[]) {
+    const phone = idToPhone.get(row.user_id)
+    if (!phone) continue
+    map[phone].imageCompleted = row.completed
+    if (row.completed > 0) map[phone].active = true
   }
 
   return map
@@ -232,6 +266,9 @@ export interface UsageInfo {
   lpLastDate: string | null
   coachingCompleted: number
   coachingLastDate: string | null
+  readingCompleted: number
+  videoCompleted: number
+  imageCompleted: number
 }
 
 export function resolveUsage(
@@ -245,15 +282,21 @@ export function resolveUsage(
       lpLastDate: row.lpLastDateSnapshot || null,
       coachingCompleted: row.coachingCompletedSnapshot,
       coachingLastDate: row.coachingLastDateSnapshot || null,
+      readingCompleted: 0,
+      videoCompleted: 0,
+      imageCompleted: 0,
     }
   }
   const info = live[row.whatsappIntl]
-  if (!info) return { lpCompleted: 0, lpLastDate: null, coachingCompleted: 0, coachingLastDate: null }
+  if (!info) return { lpCompleted: 0, lpLastDate: null, coachingCompleted: 0, coachingLastDate: null, readingCompleted: 0, videoCompleted: 0, imageCompleted: 0 }
   return {
     lpCompleted: info.lpCompleted,
     lpLastDate: info.lpLastDate,
     coachingCompleted: info.coachingCompleted,
     coachingLastDate: info.coachingLastDate,
+    readingCompleted: info.readingCompleted,
+    videoCompleted: info.videoCompleted,
+    imageCompleted: info.imageCompleted,
   }
 }
 
@@ -318,17 +361,36 @@ export async function getCoachingDetails(phones: string[]): Promise<Record<strin
   return map
 }
 
+export interface FeatureStat {
+  teachers: number
+  completed: number
+}
+
 export function summarizeLive(rows: OnboardingTeacher[], live: Record<string, LiveStatusInfo>, liveUnavailable: boolean) {
-  let active = 0, joined = 0, pending = 0, totalLp = 0, totalCoaching = 0
+  let active = 0, joined = 0, pending = 0
   const bySchool: Record<string, number> = {}
+  const features = {
+    lessonPlans: { teachers: 0, completed: 0 } as FeatureStat,
+    coaching:    { teachers: 0, completed: 0 } as FeatureStat,
+    reading:     { teachers: 0, completed: 0 } as FeatureStat,
+    video:       { teachers: 0, completed: 0 } as FeatureStat,
+    image:       { teachers: 0, completed: 0 } as FeatureStat,
+  }
+  const usedAnyFeature = new Set<number>()
+
   for (const r of rows) {
     const status = resolveLiveStatus(r, live, liveUnavailable)
     if (status === 'active') active++
     else if (status === 'joined') joined++
     else pending++
+
     const usage = resolveUsage(r, live, liveUnavailable)
-    totalLp += usage.lpCompleted
-    totalCoaching += usage.coachingCompleted
+    if (usage.lpCompleted > 0)       { features.lessonPlans.teachers++; features.lessonPlans.completed += usage.lpCompleted;       usedAnyFeature.add(r.sno) }
+    if (usage.coachingCompleted > 0) { features.coaching.teachers++;    features.coaching.completed    += usage.coachingCompleted; usedAnyFeature.add(r.sno) }
+    if (usage.readingCompleted > 0)  { features.reading.teachers++;     features.reading.completed     += usage.readingCompleted;  usedAnyFeature.add(r.sno) }
+    if (usage.videoCompleted > 0)    { features.video.teachers++;       features.video.completed       += usage.videoCompleted;    usedAnyFeature.add(r.sno) }
+    if (usage.imageCompleted > 0)    { features.image.teachers++;       features.image.completed       += usage.imageCompleted;    usedAnyFeature.add(r.sno) }
+
     if (r.school) bySchool[r.school] = (bySchool[r.school] || 0) + 1
   }
   const total = rows.length
@@ -340,7 +402,10 @@ export function summarizeLive(rows: OnboardingTeacher[], live: Record<string, Li
     pending,
     onboardedPct: total ? Math.round((onboarded / total) * 100) : 0,
     schools: Object.keys(bySchool).length,
-    totalLp,
-    totalCoaching,
+    totalLp: features.lessonPlans.completed,
+    totalCoaching: features.coaching.completed,
+    usedAnyFeature: usedAnyFeature.size,
+    usedAnyFeaturePct: onboarded ? Math.round((usedAnyFeature.size / onboarded) * 100) : 0,
+    features,
   }
 }

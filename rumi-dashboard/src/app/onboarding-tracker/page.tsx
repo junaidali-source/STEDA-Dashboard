@@ -5,7 +5,7 @@ import { Suspense } from 'react'
 import { verifySessionToken } from '@/lib/auth'
 import {
   getScopedRoster, getLiveJoinStatus, getCoachingDetails, resolveLiveStatus, resolveUsage, summarizeLive,
-  type OnboardingScope, type LiveStatus,
+  type OnboardingScope, type LiveStatus, type FeatureStat,
 } from '@/lib/onboarding-tracker'
 import StedaDashboard from '@/components/steda/StedaDashboard'
 
@@ -21,6 +21,16 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
       <p className="text-xs text-gray-500 uppercase tracking-wide">{label}</p>
       <p className="text-2xl font-bold text-white mt-1">{value}</p>
       {sub && <p className="text-xs text-gray-500 mt-0.5">{sub}</p>}
+    </div>
+  )
+}
+
+function FeatureCard({ dot, label, stat }: { dot: string; label: string; stat: FeatureStat }) {
+  return (
+    <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
+      <p className="text-xs text-gray-400 flex items-center gap-1.5"><span className={`w-2 h-2 rounded-full ${dot}`} />{label}</p>
+      <p className="text-2xl font-bold text-white mt-1">{stat.completed}</p>
+      <p className="text-xs text-gray-500 mt-0.5">{stat.teachers} teacher{stat.teachers === 1 ? '' : 's'}</p>
     </div>
   )
 }
@@ -92,20 +102,22 @@ export default async function OnboardingTrackerPage({
         <h1 className="text-2xl font-bold text-white mt-1">{scopeLabel}</h1>
         <p className="text-sm text-gray-400 mt-1">Teacher usage and coaching progress on Rumi</p>
 
-        <div className="flex gap-1 mt-5 border-t border-white/10 pt-4">
-          <Link href="?tab=overview"
-            className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
-              tab === 'overview' ? 'bg-coral text-white' : 'text-gray-300 hover:text-white hover:bg-white/10'
-            }`}>
-            Overview
-          </Link>
-          <Link href="?tab=coaching"
-            className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
-              tab === 'coaching' ? 'bg-coral text-white' : 'text-gray-300 hover:text-white hover:bg-white/10'
-            }`}>
-            Coaching
-          </Link>
-        </div>
+        {session.role !== 'principal' && (
+          <div className="flex gap-1 mt-5 border-t border-white/10 pt-4">
+            <Link href="?tab=overview"
+              className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+                tab === 'overview' ? 'bg-coral text-white' : 'text-gray-300 hover:text-white hover:bg-white/10'
+              }`}>
+              Overview
+            </Link>
+            <Link href="?tab=coaching"
+              className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+                tab === 'coaching' ? 'bg-coral text-white' : 'text-gray-300 hover:text-white hover:bg-white/10'
+              }`}>
+              Coaching
+            </Link>
+          </div>
+        )}
       </div>
 
       {liveStatusError && (
@@ -114,98 +126,109 @@ export default async function OnboardingTrackerPage({
         </div>
       )}
 
-      {tab === 'overview' && (
+      {session.role === 'principal' ? (
         <>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <StatCard label="Teachers Listed" value={stats.total} />
+            <StatCard label="Joined Rumi" value={stats.onboarded} sub={`${stats.onboardedPct}% of listed`} />
+            <StatCard label="Used Any Feature" value={stats.usedAnyFeature} sub={`${stats.usedAnyFeaturePct}% of joined`} />
+            <StatCard label="Not Yet Onboarded" value={stats.pending} />
+          </div>
+
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            <StatCard label="Total Staff" value={stats.total} />
-            <StatCard label="Onboarded" value={stats.onboarded} sub={`${stats.onboardedPct}% have a Rumi account`} />
-            <StatCard label="Active" value={stats.active} sub="completed a feature" />
-            <StatCard label="Pending" value={stats.pending} sub="no Rumi account yet" />
-            <StatCard label="Lesson Plans" value={stats.totalLp} sub="created across staff" />
+            <FeatureCard dot="bg-blue-400" label="Lesson Plans" stat={stats.features.lessonPlans} />
+            <FeatureCard dot="bg-amber-400" label="Coaching" stat={stats.features.coaching} />
+            <FeatureCard dot="bg-purple-400" label="Reading" stat={stats.features.reading} />
+            <FeatureCard dot="bg-emerald-400" label="Video Generation" stat={stats.features.video} />
+            <FeatureCard dot="bg-pink-400" label="Image Analysis" stat={stats.features.image} />
           </div>
 
-          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-800">
-              <h2 className="text-white font-semibold text-sm">Staff Roster</h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs text-gray-500 uppercase tracking-wide border-b border-gray-800">
-                    <th className="px-6 py-3 font-medium">Name</th>
-                    <th className="px-4 py-3 font-medium">Role</th>
-                    <th className="px-4 py-3 font-medium">Subject</th>
-                    <th className="px-4 py-3 font-medium">Class</th>
-                    {scope?.type !== 'school' && <th className="px-4 py-3 font-medium">School</th>}
-                    <th className="px-4 py-3 font-medium">WhatsApp</th>
-                    <th className="px-4 py-3 font-medium">Lesson Plans</th>
-                    <th className="px-6 py-3 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map(r => {
-                    const usage = resolveUsage(r, liveStatus, liveStatusError)
-                    return (
-                      <tr key={r.sno} className="border-b border-gray-800/60 last:border-0">
-                        <td className="px-6 py-3 text-gray-200">{r.name}</td>
-                        <td className="px-4 py-3 text-gray-400">{r.role}</td>
-                        <td className="px-4 py-3 text-gray-400">{r.subject || '—'}</td>
-                        <td className="px-4 py-3 text-gray-400">{r.className || '—'}</td>
-                        {scope?.type !== 'school' && <td className="px-4 py-3 text-gray-400">{r.school}</td>}
-                        <td className="px-4 py-3 text-gray-400">{r.whatsappLocal || '—'}</td>
-                        <td className="px-4 py-3 text-gray-400">
-                          {usage.lpCompleted > 0
-                            ? <span className="text-gray-200 font-medium">{usage.lpCompleted}<span className="text-gray-500 font-normal"> · {formatDate(usage.lpLastDate)}</span></span>
-                            : <span className="text-gray-600">0</span>}
-                        </td>
-                        <td className="px-6 py-3"><StatusPill status={resolveLiveStatus(r, liveStatus, liveStatusError)} /></td>
-                      </tr>
-                    )
-                  })}
-                  {rows.length === 0 && (
-                    <tr>
-                      <td colSpan={8} className="px-6 py-8 text-center text-gray-500">No staff records found for this scope.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {session.role === 'deo' && scope?.type === 'district' && (
-            <div className="space-y-4">
-              <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
-                <h2 className="text-xl font-bold text-coral">District Program Impact</h2>
-                <p className="text-sm text-gray-400 mt-1">All STEDA-cohort schools in {scope.value}</p>
+          <CoachingDetailSection rows={rows} liveStatusError={liveStatusError} />
+        </>
+      ) : (
+        <>
+          {tab === 'overview' && (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                <StatCard label="Total Staff" value={stats.total} />
+                <StatCard label="Onboarded" value={stats.onboarded} sub={`${stats.onboardedPct}% have a Rumi account`} />
+                <StatCard label="Active" value={stats.active} sub="completed a feature" />
+                <StatCard label="Pending" value={stats.pending} sub="no Rumi account yet" />
+                <StatCard label="Lesson Plans" value={stats.totalLp} sub="created across staff" />
               </div>
-              <Suspense>
-                <StedaDashboard lockedDistrict={scope.value} scoped />
-              </Suspense>
-            </div>
+
+              <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-800">
+                  <h2 className="text-white font-semibold text-sm">Staff Roster</h2>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs text-gray-500 uppercase tracking-wide border-b border-gray-800">
+                        <th className="px-6 py-3 font-medium">Name</th>
+                        <th className="px-4 py-3 font-medium">Role</th>
+                        <th className="px-4 py-3 font-medium">Subject</th>
+                        <th className="px-4 py-3 font-medium">Class</th>
+                        {scope?.type !== 'school' && <th className="px-4 py-3 font-medium">School</th>}
+                        <th className="px-4 py-3 font-medium">WhatsApp</th>
+                        <th className="px-4 py-3 font-medium">Lesson Plans</th>
+                        <th className="px-6 py-3 font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map(r => {
+                        const usage = resolveUsage(r, liveStatus, liveStatusError)
+                        return (
+                          <tr key={r.sno} className="border-b border-gray-800/60 last:border-0">
+                            <td className="px-6 py-3 text-gray-200">{r.name}</td>
+                            <td className="px-4 py-3 text-gray-400">{r.role}</td>
+                            <td className="px-4 py-3 text-gray-400">{r.subject || '—'}</td>
+                            <td className="px-4 py-3 text-gray-400">{r.className || '—'}</td>
+                            {scope?.type !== 'school' && <td className="px-4 py-3 text-gray-400">{r.school}</td>}
+                            <td className="px-4 py-3 text-gray-400">{r.whatsappLocal || '—'}</td>
+                            <td className="px-4 py-3 text-gray-400">
+                              {usage.lpCompleted > 0
+                                ? <span className="text-gray-200 font-medium">{usage.lpCompleted}<span className="text-gray-500 font-normal"> · {formatDate(usage.lpLastDate)}</span></span>
+                                : <span className="text-gray-600">0</span>}
+                            </td>
+                            <td className="px-6 py-3"><StatusPill status={resolveLiveStatus(r, liveStatus, liveStatusError)} /></td>
+                          </tr>
+                        )
+                      })}
+                      {rows.length === 0 && (
+                        <tr>
+                          <td colSpan={8} className="px-6 py-8 text-center text-gray-500">No staff records found for this scope.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {session.role === 'deo' && scope?.type === 'district' && (
+                <div className="space-y-4">
+                  <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+                    <h2 className="text-xl font-bold text-coral">District Program Impact</h2>
+                    <p className="text-sm text-gray-400 mt-1">All STEDA-cohort schools in {scope.value}</p>
+                  </div>
+                  <Suspense>
+                    <StedaDashboard lockedDistrict={scope.value} scoped />
+                  </Suspense>
+                </div>
+              )}
+            </>
           )}
 
-          {session.role === 'principal' && scope?.type === 'school' && session.semisId && (
-            <div className="space-y-4">
-              <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
-                <h2 className="text-xl font-bold text-coral">School Program Impact</h2>
-                <p className="text-sm text-gray-400 mt-1">Rumi usage across the wider STEDA cohort at {scope.value}</p>
-              </div>
-              <Suspense>
-                <StedaDashboard lockedSemisId={session.semisId} lockedLabel={scope.value} scoped hideSchoolsTable />
-              </Suspense>
-            </div>
+          {tab === 'coaching' && (
+            <CoachingDetailSection rows={rows} liveStatusError={liveStatusError} />
           )}
         </>
-      )}
-
-      {tab === 'coaching' && (
-        <CoachingTab rows={rows} liveStatusError={liveStatusError} />
       )}
     </main>
   )
 }
 
-async function CoachingTab({
+async function CoachingDetailSection({
   rows,
   liveStatusError,
 }: {
