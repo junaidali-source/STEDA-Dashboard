@@ -15,6 +15,10 @@ export interface OnboardingTeacher {
   district: string
   province: string
   status: string
+  lpCompletedSnapshot: number
+  lpLastDateSnapshot: string
+  coachingCompletedSnapshot: number
+  coachingLastDateSnapshot: string
 }
 
 function normPhone(raw: string): string {
@@ -61,18 +65,22 @@ export function getOnboardingRoster(): OnboardingTeacher[] {
 
   const headers = splitCSVRow(lines[0])
   const idx = {
-    sno:      headers.indexOf('S.No'),
-    name:     headers.indexOf('Name'),
-    role:     headers.indexOf('Role'),
-    subject:  headers.indexOf('Subject'),
-    class:    headers.indexOf('Class'),
-    waLocal:  headers.indexOf('WhatsApp (Local)'),
-    waIntl:   headers.indexOf('WhatsApp (Intl)'),
-    school:   headers.indexOf('School'),
-    emis:     headers.indexOf('EMIS Code'),
-    district: headers.indexOf('District'),
-    province: headers.indexOf('Province'),
-    status:   headers.indexOf('Onboarding Status'),
+    sno:          headers.indexOf('S.No'),
+    name:         headers.indexOf('Name'),
+    role:         headers.indexOf('Role'),
+    subject:      headers.indexOf('Subject'),
+    class:        headers.indexOf('Class'),
+    waLocal:      headers.indexOf('WhatsApp (Local)'),
+    waIntl:       headers.indexOf('WhatsApp (Intl)'),
+    school:       headers.indexOf('School'),
+    emis:         headers.indexOf('EMIS Code'),
+    district:     headers.indexOf('District'),
+    province:     headers.indexOf('Province'),
+    status:       headers.indexOf('Onboarding Status'),
+    lpCount:      headers.indexOf('LP Completed'),
+    lpDate:       headers.indexOf('LP Last Date'),
+    coachCount:   headers.indexOf('Coaching Completed'),
+    coachDate:    headers.indexOf('Coaching Last Date'),
   }
 
   const rows: OnboardingTeacher[] = []
@@ -96,6 +104,10 @@ export function getOnboardingRoster(): OnboardingTeacher[] {
       district:      (cols[idx.district] || '').trim(),
       province:      (cols[idx.province] || '').trim(),
       status:        (cols[idx.status]   || 'Pending').trim(),
+      lpCompletedSnapshot:      parseInt(cols[idx.lpCount], 10) || 0,
+      lpLastDateSnapshot:       (cols[idx.lpDate]    || '').trim(),
+      coachingCompletedSnapshot: parseInt(cols[idx.coachCount], 10) || 0,
+      coachingLastDateSnapshot:  (cols[idx.coachDate] || '').trim(),
     })
   }
 
@@ -121,11 +133,15 @@ export type LiveStatus = 'active' | 'joined' | 'pending'
 interface LiveStatusInfo {
   joined: boolean
   active: boolean
+  lpCompleted: number
+  lpLastDate: string | null
+  coachingCompleted: number
+  coachingLastDate: string | null
 }
 
 // Cross-checks each teacher's WhatsApp number against real product usage:
-// 'active' = has a Rumi account AND has used at least one AI feature
-// 'joined' = has a Rumi account but hasn't used a feature yet
+// 'active' = has a Rumi account AND has completed at least one AI feature
+// 'joined' = has a Rumi account but hasn't completed a feature yet
 // 'pending' = phone number not found in `users` at all
 export async function getLiveJoinStatus(phones: string[]): Promise<Record<string, LiveStatusInfo>> {
   const map: Record<string, LiveStatusInfo> = {}
@@ -140,23 +156,49 @@ export async function getLiveJoinStatus(phones: string[]): Promise<Record<string
   const idToPhone = new Map<string, string>()
   for (const row of usersRes.rows as { id: string; phone_number: string }[]) {
     idToPhone.set(row.id, row.phone_number)
-    map[row.phone_number] = { joined: true, active: false }
+    map[row.phone_number] = { joined: true, active: false, lpCompleted: 0, lpLastDate: null, coachingCompleted: 0, coachingLastDate: null }
   }
 
   const ids = Array.from(idToPhone.keys())
   if (ids.length === 0) return map
 
-  const activeRes = await pool.query(
+  const lpRes = await pool.query(
+    `SELECT user_id, COUNT(*)::int AS completed, MAX(created_at) AS last_date
+     FROM lesson_plan_requests WHERE user_id = ANY($1::uuid[]) AND status = 'completed'
+     GROUP BY user_id`,
+    [ids]
+  )
+  for (const row of lpRes.rows as { user_id: string; completed: number; last_date: string }[]) {
+    const phone = idToPhone.get(row.user_id)
+    if (!phone) continue
+    map[phone].lpCompleted = row.completed
+    map[phone].lpLastDate = row.last_date
+    if (row.completed > 0) map[phone].active = true
+  }
+
+  const coachRes = await pool.query(
+    `SELECT user_id, COUNT(*)::int AS completed, MAX(created_at) AS last_date
+     FROM coaching_sessions WHERE user_id = ANY($1::uuid[]) AND status = 'completed'
+     GROUP BY user_id`,
+    [ids]
+  )
+  for (const row of coachRes.rows as { user_id: string; completed: number; last_date: string }[]) {
+    const phone = idToPhone.get(row.user_id)
+    if (!phone) continue
+    map[phone].coachingCompleted = row.completed
+    map[phone].coachingLastDate = row.last_date
+    if (row.completed > 0) map[phone].active = true
+  }
+
+  const otherActiveRes = await pool.query(
     `SELECT DISTINCT user_id FROM (
-       SELECT user_id FROM lesson_plan_requests   WHERE user_id = ANY($1::uuid[])
-       UNION SELECT user_id FROM coaching_sessions       WHERE user_id = ANY($1::uuid[])
-       UNION SELECT user_id FROM video_requests          WHERE user_id = ANY($1::uuid[])
-       UNION SELECT user_id FROM image_analysis_requests WHERE user_id = ANY($1::uuid[])
-       UNION SELECT user_id FROM reading_assessments     WHERE user_id = ANY($1::uuid[])
+       SELECT user_id FROM video_requests          WHERE user_id = ANY($1::uuid[]) AND status = 'completed'
+       UNION SELECT user_id FROM image_analysis_requests WHERE user_id = ANY($1::uuid[]) AND status = 'completed'
+       UNION SELECT user_id FROM reading_assessments     WHERE user_id = ANY($1::uuid[]) AND status = 'completed'
      ) sub`,
     [ids]
   )
-  for (const row of activeRes.rows as { user_id: string }[]) {
+  for (const row of otherActiveRes.rows as { user_id: string }[]) {
     const phone = idToPhone.get(row.user_id)
     if (phone) map[phone].active = true
   }
@@ -185,14 +227,47 @@ export function resolveLiveStatus(
   return info.active ? 'active' : 'joined'
 }
 
+export interface UsageInfo {
+  lpCompleted: number
+  lpLastDate: string | null
+  coachingCompleted: number
+  coachingLastDate: string | null
+}
+
+export function resolveUsage(
+  row: OnboardingTeacher,
+  live: Record<string, LiveStatusInfo>,
+  liveUnavailable: boolean
+): UsageInfo {
+  if (liveUnavailable) {
+    return {
+      lpCompleted: row.lpCompletedSnapshot,
+      lpLastDate: row.lpLastDateSnapshot || null,
+      coachingCompleted: row.coachingCompletedSnapshot,
+      coachingLastDate: row.coachingLastDateSnapshot || null,
+    }
+  }
+  const info = live[row.whatsappIntl]
+  if (!info) return { lpCompleted: 0, lpLastDate: null, coachingCompleted: 0, coachingLastDate: null }
+  return {
+    lpCompleted: info.lpCompleted,
+    lpLastDate: info.lpLastDate,
+    coachingCompleted: info.coachingCompleted,
+    coachingLastDate: info.coachingLastDate,
+  }
+}
+
 export function summarizeLive(rows: OnboardingTeacher[], live: Record<string, LiveStatusInfo>, liveUnavailable: boolean) {
-  let active = 0, joined = 0, pending = 0
+  let active = 0, joined = 0, pending = 0, totalLp = 0, totalCoaching = 0
   const bySchool: Record<string, number> = {}
   for (const r of rows) {
     const status = resolveLiveStatus(r, live, liveUnavailable)
     if (status === 'active') active++
     else if (status === 'joined') joined++
     else pending++
+    const usage = resolveUsage(r, live, liveUnavailable)
+    totalLp += usage.lpCompleted
+    totalCoaching += usage.coachingCompleted
     if (r.school) bySchool[r.school] = (bySchool[r.school] || 0) + 1
   }
   const total = rows.length
@@ -204,5 +279,7 @@ export function summarizeLive(rows: OnboardingTeacher[], live: Record<string, Li
     pending,
     onboardedPct: total ? Math.round((onboarded / total) * 100) : 0,
     schools: Object.keys(bySchool).length,
+    totalLp,
+    totalCoaching,
   }
 }

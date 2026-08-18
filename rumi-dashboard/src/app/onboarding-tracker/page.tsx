@@ -2,7 +2,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { verifySessionToken } from '@/lib/auth'
 import {
-  getScopedRoster, getLiveJoinStatus, resolveLiveStatus, summarizeLive,
+  getScopedRoster, getLiveJoinStatus, resolveLiveStatus, resolveUsage, summarizeLive,
   type OnboardingScope, type LiveStatus,
 } from '@/lib/onboarding-tracker'
 
@@ -41,6 +41,13 @@ function StatusPill({ status }: { status: LiveStatus }) {
   )
 }
 
+function formatDate(iso: string | null): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return iso
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
 export default async function OnboardingTrackerPage() {
   const cookieStore = cookies()
   const token = cookieStore.get('session')?.value
@@ -54,7 +61,7 @@ export default async function OnboardingTrackerPage() {
     null
 
   const rows = getScopedRoster(scope)
-  let liveStatus: Record<string, { joined: boolean; active: boolean }> = {}
+  let liveStatus: Awaited<ReturnType<typeof getLiveJoinStatus>> = {}
   let liveStatusError = false
   try {
     liveStatus = await getLiveJoinStatus(rows.map(r => r.whatsappIntl))
@@ -82,11 +89,13 @@ export default async function OnboardingTrackerPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <StatCard label="Total Staff" value={stats.total} />
         <StatCard label="Onboarded" value={stats.onboarded} sub={`${stats.onboardedPct}% have a Rumi account`} />
-        <StatCard label="Active" value={stats.active} sub="used a feature on Rumi" />
+        <StatCard label="Active" value={stats.active} sub="completed a feature" />
         <StatCard label="Pending" value={stats.pending} sub="no Rumi account yet" />
+        <StatCard label="Lesson Plans" value={stats.totalLp} sub="created across staff" />
+        <StatCard label="Coaching Sessions" value={stats.totalCoaching} sub="completed across staff" />
       </div>
 
       <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
@@ -103,24 +112,39 @@ export default async function OnboardingTrackerPage() {
                 <th className="px-4 py-3 font-medium">Class</th>
                 {scope?.type !== 'school' && <th className="px-4 py-3 font-medium">School</th>}
                 <th className="px-4 py-3 font-medium">WhatsApp</th>
+                <th className="px-4 py-3 font-medium">Lesson Plans</th>
+                <th className="px-4 py-3 font-medium">Coaching</th>
                 <th className="px-6 py-3 font-medium">Status</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map(r => (
-                <tr key={r.sno} className="border-b border-gray-800/60 last:border-0">
-                  <td className="px-6 py-3 text-gray-200">{r.name}</td>
-                  <td className="px-4 py-3 text-gray-400">{r.role}</td>
-                  <td className="px-4 py-3 text-gray-400">{r.subject || '—'}</td>
-                  <td className="px-4 py-3 text-gray-400">{r.className || '—'}</td>
-                  {scope?.type !== 'school' && <td className="px-4 py-3 text-gray-400">{r.school}</td>}
-                  <td className="px-4 py-3 text-gray-400">{r.whatsappLocal || '—'}</td>
-                  <td className="px-6 py-3"><StatusPill status={resolveLiveStatus(r, liveStatus, liveStatusError)} /></td>
-                </tr>
-              ))}
+              {rows.map(r => {
+                const usage = resolveUsage(r, liveStatus, liveStatusError)
+                return (
+                  <tr key={r.sno} className="border-b border-gray-800/60 last:border-0">
+                    <td className="px-6 py-3 text-gray-200">{r.name}</td>
+                    <td className="px-4 py-3 text-gray-400">{r.role}</td>
+                    <td className="px-4 py-3 text-gray-400">{r.subject || '—'}</td>
+                    <td className="px-4 py-3 text-gray-400">{r.className || '—'}</td>
+                    {scope?.type !== 'school' && <td className="px-4 py-3 text-gray-400">{r.school}</td>}
+                    <td className="px-4 py-3 text-gray-400">{r.whatsappLocal || '—'}</td>
+                    <td className="px-4 py-3 text-gray-400">
+                      {usage.lpCompleted > 0
+                        ? <span className="text-gray-200 font-medium">{usage.lpCompleted}<span className="text-gray-500 font-normal"> · {formatDate(usage.lpLastDate)}</span></span>
+                        : <span className="text-gray-600">0</span>}
+                    </td>
+                    <td className="px-4 py-3 text-gray-400">
+                      {usage.coachingCompleted > 0
+                        ? <span className="text-gray-200 font-medium">{usage.coachingCompleted}<span className="text-gray-500 font-normal"> · {formatDate(usage.coachingLastDate)}</span></span>
+                        : <span className="text-gray-600">0</span>}
+                    </td>
+                    <td className="px-6 py-3"><StatusPill status={resolveLiveStatus(r, liveStatus, liveStatusError)} /></td>
+                  </tr>
+                )
+              })}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">No staff records found for this scope.</td>
+                  <td colSpan={9} className="px-6 py-8 text-center text-gray-500">No staff records found for this scope.</td>
                 </tr>
               )}
             </tbody>
