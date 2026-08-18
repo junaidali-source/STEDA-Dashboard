@@ -4,8 +4,9 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { verifySessionToken } from '@/lib/auth'
 import {
-  getScopedRoster, getLiveJoinStatus, getCoachingDetails, resolveLiveStatus, resolveUsage, summarizeLive,
-  type OnboardingScope, type LiveStatus, type FeatureStat,
+  getScopedRoster, getLiveJoinStatus, getCoachingDetails, getCoachingIndicators, buildLeaderboard,
+  resolveLiveStatus, resolveUsage, summarizeLive,
+  type OnboardingScope, type LiveStatus, type FeatureStat, type CoachingIndicators, type DomainScore,
 } from '@/lib/onboarding-tracker'
 import { featureColor } from '@/lib/feature-colors'
 import StedaDashboard from '@/components/steda/StedaDashboard'
@@ -58,6 +59,47 @@ function StatusPill({ status }: { status: LiveStatus }) {
   )
 }
 
+// Non-punitive 3-tier language per the Rumi brand guide (Strong / Good /
+// Focus Area — never "Fail"), reusing the same color roles as StatusPill.
+const TIER_LABEL: Record<DomainScore['tier'], string> = {
+  strong: 'Strong',
+  good:   'Good',
+  focus:  'Focus Area',
+}
+const TIER_STYLES: Record<DomainScore['tier'], string> = {
+  strong: 'bg-emerald-500/15 text-emerald-400',
+  good:   'bg-sky-500/15 text-sky-400',
+  focus:  'bg-amber-500/15 text-amber-400',
+}
+const TIER_DOT: Record<DomainScore['tier'], string> = {
+  strong: 'bg-emerald-400',
+  good:   'bg-sky-400',
+  focus:  'bg-amber-400',
+}
+
+function TierPill({ tier, label }: { tier: DomainScore['tier']; label?: string }) {
+  return (
+    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TIER_STYLES[tier]}`}>
+      {label ?? TIER_LABEL[tier]}
+    </span>
+  )
+}
+
+function overallTier(pct: number | null): DomainScore['tier'] {
+  if (pct === null) return 'focus'
+  return pct >= 80 ? 'strong' : pct >= 60 ? 'good' : 'focus'
+}
+
+function DomainCell({ domain }: { domain: DomainScore | null }) {
+  if (!domain) return <span className="text-gray-600">—</span>
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className={`w-1.5 h-1.5 rounded-full ${TIER_DOT[domain.tier]}`} />
+      <span className="text-gray-300">{domain.score}/{domain.max}</span>
+    </span>
+  )
+}
+
 function formatDate(iso: string | null): string {
   if (!iso) return '—'
   const d = new Date(iso)
@@ -99,6 +141,16 @@ export default async function OnboardingTrackerPage({
     scope?.type === 'district' ? `${scope.value} District` :
     'All Schools'
 
+  let leaderboard: ReturnType<typeof buildLeaderboard> = []
+  if (session.role === 'principal' && !liveStatusError) {
+    try {
+      const indicators = await getCoachingIndicators(rows.map(r => r.whatsappIntl))
+      leaderboard = buildLeaderboard(rows, indicators)
+    } catch (e) {
+      console.error('onboarding-tracker: leaderboard lookup failed', e)
+    }
+  }
+
   return (
     <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       <div className="bg-navy-dark rounded-xl p-6 border border-white/10">
@@ -106,22 +158,20 @@ export default async function OnboardingTrackerPage({
         <h1 className="text-2xl font-bold text-white mt-1">{scopeLabel}</h1>
         <p className="text-sm text-gray-400 mt-1">Teacher usage and coaching progress on Rumi</p>
 
-        {session.role !== 'principal' && (
-          <div className="flex gap-1 mt-5 border-t border-white/10 pt-4">
-            <Link href="?tab=overview"
-              className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
-                tab === 'overview' ? 'bg-coral text-white' : 'text-gray-300 hover:text-white hover:bg-white/10'
-              }`}>
-              Overview
-            </Link>
-            <Link href="?tab=coaching"
-              className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
-                tab === 'coaching' ? 'bg-coral text-white' : 'text-gray-300 hover:text-white hover:bg-white/10'
-              }`}>
-              Coaching
-            </Link>
-          </div>
-        )}
+        <div className="flex gap-1 mt-5 border-t border-white/10 pt-4">
+          <Link href="?tab=overview"
+            className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+              tab === 'overview' ? 'bg-coral text-white' : 'text-gray-300 hover:text-white hover:bg-white/10'
+            }`}>
+            Overview
+          </Link>
+          <Link href="?tab=coaching"
+            className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
+              tab === 'coaching' ? 'bg-coral text-white' : 'text-gray-300 hover:text-white hover:bg-white/10'
+            }`}>
+            Coaching
+          </Link>
+        </div>
       </div>
 
       {liveStatusError && (
@@ -132,22 +182,30 @@ export default async function OnboardingTrackerPage({
 
       {session.role === 'principal' ? (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <StatCard label="Teachers Listed" value={stats.total} />
-            <StatCard label="Joined Rumi" value={stats.onboarded} sub={`${stats.onboardedPct}% of listed`} />
-            <StatCard label="Used Any Feature" value={stats.usedAnyFeature} sub={`${stats.usedAnyFeaturePct}% of joined`} />
-            <StatCard label="Not Yet Onboarded" value={stats.pending} />
-          </div>
+          {tab === 'overview' && (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <StatCard label="Teachers Listed" value={stats.total} />
+                <StatCard label="Joined Rumi" value={stats.onboarded} sub={`${stats.onboardedPct}% of listed`} />
+                <StatCard label="Used Any Feature" value={stats.usedAnyFeature} sub={`${stats.usedAnyFeaturePct}% of joined`} />
+                <StatCard label="Not Yet Onboarded" value={stats.pending} />
+              </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            <FeatureCard label="Lesson Plans" stat={stats.features.lessonPlans} />
-            <FeatureCard label="Coaching" stat={stats.features.coaching} />
-            <FeatureCard label="Reading" stat={stats.features.reading} />
-            <FeatureCard label="Video Generation" stat={stats.features.video} />
-            <FeatureCard label="Image Analysis" stat={stats.features.image} />
-          </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                <FeatureCard label="Lesson Plans" stat={stats.features.lessonPlans} />
+                <FeatureCard label="Coaching" stat={stats.features.coaching} />
+                <FeatureCard label="Reading" stat={stats.features.reading} />
+                <FeatureCard label="Video Generation" stat={stats.features.video} />
+                <FeatureCard label="Image Analysis" stat={stats.features.image} />
+              </div>
 
-          <CoachingDetailSection rows={rows} liveStatusError={liveStatusError} />
+              <CoachingLeaderboard entries={leaderboard} />
+            </>
+          )}
+
+          {tab === 'coaching' && (
+            <CoachingDetailSection rows={rows} liveStatusError={liveStatusError} />
+          )}
         </>
       ) : (
         <>
@@ -232,6 +290,40 @@ export default async function OnboardingTrackerPage({
   )
 }
 
+function CoachingLeaderboard({ entries }: { entries: ReturnType<typeof buildLeaderboard> }) {
+  const RANK_BADGE = ['bg-gold text-navy-dark', 'bg-gray-300 text-navy-dark', 'bg-amber-700 text-white']
+
+  return (
+    <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-800">
+        <h2 className="text-white font-semibold text-sm">Top Teachers</h2>
+        <p className="text-xs text-gray-500 mt-0.5">Ranked by latest coaching session score</p>
+      </div>
+      {entries.length === 0 ? (
+        <p className="px-6 py-8 text-center text-gray-500 text-sm">No completed coaching sessions yet.</p>
+      ) : (
+        <ul className="divide-y divide-gray-800">
+          {entries.map((e, i) => (
+            <li key={e.name} className="flex items-center gap-4 px-6 py-3">
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                RANK_BADGE[i] || 'bg-gray-800 text-gray-400'
+              }`}>
+                {i + 1}
+              </span>
+              <span className="flex-1 text-gray-200 text-sm truncate">{e.name}</span>
+              {e.performanceBand && (
+                <span className="text-xs text-gray-500 hidden sm:inline">{e.performanceBand}</span>
+              )}
+              <span className="text-xs text-gray-500 hidden md:inline">{formatDate(e.sessionDate)}</span>
+              <span className="text-white font-bold text-sm w-14 text-right">{e.overallPct}%</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 async function CoachingDetailSection({
   rows,
   liveStatusError,
@@ -240,10 +332,17 @@ async function CoachingDetailSection({
   liveStatusError: boolean
 }) {
   let coaching: Awaited<ReturnType<typeof getCoachingDetails>> = {}
+  let indicators: Record<string, CoachingIndicators> = {}
   let coachingError = liveStatusError
   if (!liveStatusError) {
     try {
-      coaching = await getCoachingDetails(rows.map(r => r.whatsappIntl))
+      const phones = rows.map(r => r.whatsappIntl)
+      const [detailResult, indicatorResult] = await Promise.all([
+        getCoachingDetails(phones),
+        getCoachingIndicators(phones),
+      ])
+      coaching = detailResult
+      indicators = indicatorResult
     } catch (e) {
       console.error('onboarding-tracker: coaching detail lookup failed', e)
       coachingError = true
@@ -254,6 +353,14 @@ async function CoachingDetailSection({
   const totalSessions = withSessions.reduce((sum, r) => sum + (coaching[r.whatsappIntl]?.sessionsCompleted ?? 0), 0)
   const improvements = withSessions.map(r => coaching[r.whatsappIntl]?.improvement).filter((v): v is number => v !== null && v !== undefined)
   const avgImprovement = improvements.length ? Math.round((improvements.reduce((a, b) => a + b, 0) / improvements.length) * 10) / 10 : null
+
+  const withIndicators = rows.filter(r => indicators[r.whatsappIntl])
+  const focusAreaDomains: (keyof CoachingIndicators['areas'])[] = [
+    'classroomEnvironment', 'lessonPlanning', 'instructionalStrategies', 'studentEngagement', 'assessmentFeedback',
+  ]
+  const teachersWithFocusArea = withIndicators.filter(r =>
+    focusAreaDomains.some(d => indicators[r.whatsappIntl].areas[d]?.tier === 'focus')
+  ).length
 
   return (
     <div className="space-y-6">
@@ -309,6 +416,58 @@ async function CoachingDetailSection({
               {withSessions.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-6 py-8 text-center text-gray-500">No completed coaching sessions yet for this scope.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-800">
+          <h2 className="text-white font-semibold text-sm">Coaching Indicators</h2>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Latest session, by rubric domain
+            {withIndicators.length > 0 && teachersWithFocusArea > 0 && (
+              <> — <span className="text-amber-400 font-medium">{teachersWithFocusArea} of {withIndicators.length}</span> have at least one Focus Area</>
+            )}
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-gray-500 uppercase tracking-wide border-b border-gray-800">
+                <th className="px-6 py-3 font-medium">Name</th>
+                <th className="px-4 py-3 font-medium">Classroom Env.</th>
+                <th className="px-4 py-3 font-medium">Lesson Planning</th>
+                <th className="px-4 py-3 font-medium">Instructional Strat.</th>
+                <th className="px-4 py-3 font-medium">Student Engagement</th>
+                <th className="px-4 py-3 font-medium">Assessment &amp; Feedback</th>
+                <th className="px-6 py-3 font-medium">Band</th>
+              </tr>
+            </thead>
+            <tbody>
+              {withIndicators.map(r => {
+                const ind = indicators[r.whatsappIntl]
+                return (
+                  <tr key={r.sno} className="border-b border-gray-800/60 last:border-0">
+                    <td className="px-6 py-3 text-gray-200">{r.name}</td>
+                    <td className="px-4 py-3"><DomainCell domain={ind.areas.classroomEnvironment} /></td>
+                    <td className="px-4 py-3"><DomainCell domain={ind.areas.lessonPlanning} /></td>
+                    <td className="px-4 py-3"><DomainCell domain={ind.areas.instructionalStrategies} /></td>
+                    <td className="px-4 py-3"><DomainCell domain={ind.areas.studentEngagement} /></td>
+                    <td className="px-4 py-3"><DomainCell domain={ind.areas.assessmentFeedback} /></td>
+                    <td className="px-6 py-3">
+                      {ind.performanceBand
+                        ? <TierPill tier={overallTier(ind.overallPct)} label={ind.performanceBand} />
+                        : '—'}
+                    </td>
+                  </tr>
+                )
+              })}
+              {withIndicators.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">No coaching indicator data yet for this scope.</td>
                 </tr>
               )}
             </tbody>

@@ -361,6 +361,137 @@ export async function getCoachingDetails(phones: string[]): Promise<Record<strin
   return map
 }
 
+export interface DomainScore {
+  score: number
+  max: number
+  pct: number
+  tier: 'strong' | 'good' | 'focus'
+}
+
+export interface CoachingIndicators {
+  overallPct: number | null
+  performanceBand: string | null
+  sessionDate: string | null
+  areas: {
+    classroomEnvironment: DomainScore | null
+    lessonPlanning: DomainScore | null
+    instructionalStrategies: DomainScore | null
+    studentEngagement: DomainScore | null
+    assessmentFeedback: DomainScore | null
+  }
+}
+
+function toDomainScore(score: string | number | null, max: string | number | null): DomainScore | null {
+  if (score === null || max === null) return null
+  const s = Number(score)
+  const m = Number(max)
+  if (!m) return null
+  const pct = Math.round((s / m) * 1000) / 10
+  const tier: DomainScore['tier'] = pct >= 80 ? 'strong' : pct >= 60 ? 'good' : 'focus'
+  return { score: s, max: m, pct, tier }
+}
+
+// Each teacher's most recent completed coaching session, broken down by the
+// 5 rubric domains (real analysis_data shape, verified live 2026-08-18 via
+// governed BigQuery query against coaching_sessions.analysis_data):
+// areas.{classroom_environment,lesson_planning,instructional_strategies,
+// student_engagement,assessment_feedback}.{area_score,area_max}.
+export async function getCoachingIndicators(phones: string[]): Promise<Record<string, CoachingIndicators>> {
+  const map: Record<string, CoachingIndicators> = {}
+  const uniquePhones = Array.from(new Set(phones.filter(Boolean)))
+  if (uniquePhones.length === 0) return map
+
+  const usersRes = await pool.query(
+    `SELECT id, phone_number FROM users
+     WHERE phone_number = ANY($1::text[]) AND COALESCE(is_test_user, false) = false`,
+    [uniquePhones]
+  )
+  const idToPhone = new Map<string, string>()
+  for (const row of usersRes.rows as { id: string; phone_number: string }[]) {
+    idToPhone.set(row.id, row.phone_number)
+  }
+  const ids = Array.from(idToPhone.keys())
+  if (ids.length === 0) return map
+
+  const res = await pool.query(
+    `SELECT DISTINCT ON (cs.user_id)
+       cs.user_id, cs.created_at,
+       (cs.analysis_data->'scores'->>'overall_percentage')::numeric AS overall_pct,
+       cs.analysis_data->>'performance_band' AS performance_band,
+       (cs.analysis_data->'areas'->'classroom_environment'->>'area_score')::numeric AS ce_score,
+       (cs.analysis_data->'areas'->'classroom_environment'->>'area_max')::numeric   AS ce_max,
+       (cs.analysis_data->'areas'->'lesson_planning'->>'area_score')::numeric AS lp_score,
+       (cs.analysis_data->'areas'->'lesson_planning'->>'area_max')::numeric   AS lp_max,
+       (cs.analysis_data->'areas'->'instructional_strategies'->>'area_score')::numeric AS is_score,
+       (cs.analysis_data->'areas'->'instructional_strategies'->>'area_max')::numeric   AS is_max,
+       (cs.analysis_data->'areas'->'student_engagement'->>'area_score')::numeric AS se_score,
+       (cs.analysis_data->'areas'->'student_engagement'->>'area_max')::numeric   AS se_max,
+       (cs.analysis_data->'areas'->'assessment_feedback'->>'area_score')::numeric AS af_score,
+       (cs.analysis_data->'areas'->'assessment_feedback'->>'area_max')::numeric   AS af_max
+     FROM coaching_sessions cs
+     WHERE cs.user_id = ANY($1::uuid[]) AND cs.status = 'completed'
+     ORDER BY cs.user_id, cs.created_at DESC`,
+    [ids]
+  )
+
+  interface Row {
+    user_id: string; created_at: string
+    overall_pct: string | null; performance_band: string | null
+    ce_score: string | null; ce_max: string | null
+    lp_score: string | null; lp_max: string | null
+    is_score: string | null; is_max: string | null
+    se_score: string | null; se_max: string | null
+    af_score: string | null; af_max: string | null
+  }
+
+  for (const row of res.rows as Row[]) {
+    const phone = idToPhone.get(row.user_id)
+    if (!phone) continue
+    map[phone] = {
+      overallPct: row.overall_pct !== null ? Number(row.overall_pct) : null,
+      performanceBand: row.performance_band,
+      sessionDate: row.created_at,
+      areas: {
+        classroomEnvironment:    toDomainScore(row.ce_score, row.ce_max),
+        lessonPlanning:          toDomainScore(row.lp_score, row.lp_max),
+        instructionalStrategies: toDomainScore(row.is_score, row.is_max),
+        studentEngagement:       toDomainScore(row.se_score, row.se_max),
+        assessmentFeedback:      toDomainScore(row.af_score, row.af_max),
+      },
+    }
+  }
+
+  return map
+}
+
+export interface LeaderboardEntry {
+  name: string
+  overallPct: number
+  performanceBand: string | null
+  sessionDate: string | null
+}
+
+// Ranked by each teacher's latest completed session score (not average) —
+// reflects current standing, per operator decision.
+export function buildLeaderboard(
+  rows: OnboardingTeacher[],
+  indicators: Record<string, CoachingIndicators>,
+  limit = 5
+): LeaderboardEntry[] {
+  return rows
+    .map(r => ({ r, ind: indicators[r.whatsappIntl] }))
+    .filter((x): x is { r: OnboardingTeacher; ind: CoachingIndicators & { overallPct: number } } =>
+      x.ind !== undefined && x.ind.overallPct !== null)
+    .sort((a, b) => b.ind.overallPct - a.ind.overallPct)
+    .slice(0, limit)
+    .map(({ r, ind }) => ({
+      name: r.name,
+      overallPct: ind.overallPct,
+      performanceBand: ind.performanceBand,
+      sessionDate: ind.sessionDate,
+    }))
+}
+
 export interface FeatureStat {
   teachers: number
   completed: number
