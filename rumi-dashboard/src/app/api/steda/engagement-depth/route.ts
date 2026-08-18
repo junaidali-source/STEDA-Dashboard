@@ -15,14 +15,14 @@ export async function GET(req: NextRequest) {
     const from = sp.get('from') || null
     const to   = sp.get('to')   || null
 
-    const { region, district } = stedaScopeFromSearchParams(sp)
-    const cacheKey = `${region}|${district}|${from}|${to}`
+    const { region, district, semisId } = stedaScopeFromSearchParams(sp)
+    const cacheKey = `${region}|${district}|${semisId}|${from}|${to}`
     const cached = g._engagementDepthCache?.get(cacheKey)
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       return NextResponse.json(cached.data)
     }
 
-    const phones = await getFilteredStedaPhones(region, district)
+    const phones = await getFilteredStedaPhones(region, district, semisId)
     const idsRes = await pool.query(
       `SELECT id FROM users WHERE phone_number = ANY($1::text[]) AND COALESCE(is_test_user, false) = false`,
       [phones]

@@ -21,8 +21,8 @@ export async function GET(req: NextRequest) {
     const from = sp.get('from') || null
     const to   = sp.get('to')   || null
 
-    const { region, district } = stedaScopeFromSearchParams(sp)
-    const phones = await getFilteredStedaPhones(region, district)
+    const { region, district, semisId } = stedaScopeFromSearchParams(sp)
+    const phones = await getFilteredStedaPhones(region, district, semisId)
     const res = await pool.query(
       `SELECT DATE_TRUNC('day', created_at)::date::text AS day, COUNT(*)::int AS count
        FROM users

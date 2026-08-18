@@ -16,9 +16,9 @@ function escapeCSV(str: string | number | null | undefined): string {
 export async function GET(req: NextRequest) {
   try {
     const sp = new URL(req.url).searchParams
-    const { region, district } = stedaScopeFromSearchParams(sp)
+    const { region, district, semisId } = stedaScopeFromSearchParams(sp)
 
-    const phones = await getFilteredStedaPhones(region, district)
+    const phones = await getFilteredStedaPhones(region, district, semisId)
     if (phones.length === 0) {
       return new NextResponse('phone_number,name,school,region\n', {
         headers: { 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename="steda-rumi-export.csv"' }

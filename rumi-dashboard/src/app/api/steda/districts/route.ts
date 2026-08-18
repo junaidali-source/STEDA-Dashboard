@@ -6,8 +6,8 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   try {
-    const { region, district } = stedaScopeFromSearchParams(req.nextUrl.searchParams)
-    const teachers = await getFilteredStedaTeachers(region, district)
+    const { region, district, semisId } = stedaScopeFromSearchParams(req.nextUrl.searchParams)
+    const teachers = await getFilteredStedaTeachers(region, district, semisId)
     const phones = teachers.map((t) => t.phone)
     const districtListed: Record<string, number> = {}
     for (const t of teachers) {

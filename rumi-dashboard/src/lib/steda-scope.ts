@@ -6,10 +6,11 @@ const g = global as typeof global & { _phonesCache?: Map<string, CacheEntry> }
 if (!g._phonesCache) g._phonesCache = new Map()
 const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
-export function stedaScopeFromSearchParams(sp: URLSearchParams): { region: string; district: string } {
+export function stedaScopeFromSearchParams(sp: URLSearchParams): { region: string; district: string; semisId: string } {
   return {
     region: sp.get('region')?.trim() || '',
     district: sp.get('district')?.trim() || '',
+    semisId: sp.get('semisId')?.trim() || '',
   }
 }
 
@@ -27,18 +28,22 @@ function cohortRegionWhere(cAlias: string, uAlias: string, regParam: string): st
  * STEDA cohort phones after optional CSV district filter and optional `users.region` filter.
  * Results cached for 5 minutes to avoid repeated database queries.
  */
-export async function getFilteredStedaPhones(region: string, district: string): Promise<string[]> {
+export async function getFilteredStedaPhones(region: string, district: string, semisId = ''): Promise<string[]> {
   const { teachers } = getSteadaData()
   let subset = teachers
   if (district) {
     const d = district.trim().toLowerCase()
-    subset = teachers.filter((t) => t.district.trim().toLowerCase() === d)
+    subset = subset.filter((t) => t.district.trim().toLowerCase() === d)
+  }
+  if (semisId) {
+    const s = semisId.trim()
+    subset = subset.filter((t) => t.semisId.trim() === s)
   }
   const phones = Array.from(new Set(subset.map((t) => t.phone)))
   const reg = (region || '').trim()
   if (!reg || phones.length === 0) return phones
 
-  const cacheKey = `${district}|${region}`
+  const cacheKey = `${district}|${region}|${semisId}`
   const cached = g._phonesCache?.get(cacheKey)
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     return cached.phones
@@ -65,9 +70,10 @@ export async function getFilteredStedaPhones(region: string, district: string): 
 
 export async function getFilteredStedaTeachers(
   region: string,
-  district: string
+  district: string,
+  semisId = ''
 ): Promise<SteadaTeacher[]> {
-  const phoneSet = new Set(await getFilteredStedaPhones(region, district))
+  const phoneSet = new Set(await getFilteredStedaPhones(region, district, semisId))
   const { teachers } = getSteadaData()
   return teachers.filter((t) => phoneSet.has(t.phone))
 }

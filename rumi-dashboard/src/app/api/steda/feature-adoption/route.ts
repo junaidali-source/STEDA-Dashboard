@@ -10,8 +10,8 @@ export async function GET(req: NextRequest) {
     const from = sp.get('from') || null
     const to   = sp.get('to')   || null
 
-    const { region, district } = stedaScopeFromSearchParams(sp)
-    const phones = await getFilteredStedaPhones(region, district)
+    const { region, district, semisId } = stedaScopeFromSearchParams(sp)
+    const phones = await getFilteredStedaPhones(region, district, semisId)
     const idsRes = await pool.query(
       `SELECT id FROM users WHERE phone_number = ANY($1::text[]) AND COALESCE(is_test_user, false) = false`,
       [phones]

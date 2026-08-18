@@ -7,8 +7,8 @@ const DESIG_ORDER = ['PST', 'EST', 'SST', 'HST', 'JEST/JST', 'ECT', 'Sr. ECT', '
 
 export async function GET(req: NextRequest) {
   try {
-    const { region, district } = stedaScopeFromSearchParams(req.nextUrl.searchParams)
-    const teachers = await getFilteredStedaTeachers(region, district)
+    const { region, district, semisId } = stedaScopeFromSearchParams(req.nextUrl.searchParams)
+    const teachers = await getFilteredStedaTeachers(region, district, semisId)
     const gender: Record<string, number> = {}
     const schoolType: Record<string, number> = {}
     const designations: Record<string, number> = {}

@@ -165,6 +165,18 @@ export default async function OnboardingTrackerPage() {
           </Suspense>
         </div>
       )}
+
+      {session.role === 'principal' && scope?.type === 'school' && session.semisId && (
+        <div className="space-y-4">
+          <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+            <h2 className="text-xl font-bold text-teal-400">School Program Impact</h2>
+            <p className="text-sm text-gray-400 mt-1">Rumi usage across the wider STEDA cohort at {scope.value}</p>
+          </div>
+          <Suspense>
+            <StedaDashboard lockedSemisId={session.semisId} lockedLabel={scope.value} scoped hideSchoolsTable />
+          </Suspense>
+        </div>
+      )}
     </main>
   )
 }

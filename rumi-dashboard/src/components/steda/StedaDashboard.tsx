@@ -50,15 +50,22 @@ function firstOfMonth() { const d = new Date(); return `${d.getFullYear()}-${Str
 interface StedaDashboardProps {
   /** Lock the district filter to this value and hide the picker (DEO scope). */
   lockedDistrict?: string
+  /** Lock to a single school via its SEMISID/EMIS code (Principal scope). */
+  lockedSemisId?: string
+  /** Human-readable label shown next to the locked scope when using lockedSemisId. */
+  lockedLabel?: string
   /** Hide province-wide-only panels that don't make sense for a single district/school. */
   scoped?: boolean
+  /** Hide the top-schools comparison table — meaningless at single-school scope. */
+  hideSchoolsTable?: boolean
 }
 
-export default function StedaDashboard({ lockedDistrict, scoped }: StedaDashboardProps = {}) {
+export default function StedaDashboard({ lockedDistrict, lockedSemisId, lockedLabel, scoped, hideSchoolsTable }: StedaDashboardProps = {}) {
   const [from, setFrom] = useState('')
   const [to,   setTo]   = useState('')
   const [preset, setPreset] = useState('All Time')
   const [district, setDistrict] = useState(lockedDistrict || '')
+  const [semisId] = useState(lockedSemisId || '')
   const [districtOptions, setDistrictOptions] = useState<string[]>([])
 
   const [overview,     setOverview]     = useState<Overview | null>(null)
@@ -80,9 +87,10 @@ export default function StedaDashboard({ lockedDistrict, scoped }: StedaDashboar
     if (from) params.set('from', from)
     if (to) params.set('to', to)
     if (district) params.set('district', district)
+    if (semisId) params.set('semisId', semisId)
     const qs = params.toString()
     return qs ? `?${qs}` : ''
-  }, [from, to, district])
+  }, [from, to, district, semisId])
 
   const safeJsonFetch = useCallback(async (url: string) => {
     const res = await fetch(url)
@@ -120,13 +128,15 @@ export default function StedaDashboard({ lockedDistrict, scoped }: StedaDashboar
       loadedRef.current = true
 
       // Load top-schools separately after main data
-      safeJsonFetch(`/api/steda/top-schools${q}`)
-        .then((sc) => setSchools(Array.isArray(sc) ? sc : []))
-        .catch((e) => console.error('Failed to load top-schools:', e))
+      if (!hideSchoolsTable) {
+        safeJsonFetch(`/api/steda/top-schools${q}`)
+          .then((sc) => setSchools(Array.isArray(sc) ? sc : []))
+          .catch((e) => console.error('Failed to load top-schools:', e))
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Unknown error')
     }
-  }, [stedaQuery, safeJsonFetch, scoped])
+  }, [stedaQuery, safeJsonFetch, scoped, hideSchoolsTable])
 
   const fetchAllRef = useRef(fetchAll)
   fetchAllRef.current = fetchAll
@@ -212,24 +222,35 @@ export default function StedaDashboard({ lockedDistrict, scoped }: StedaDashboar
             </button>
           ))}
         </div>
-        <span className="text-xs text-gray-400 font-medium shrink-0">District:</span>
-        {lockedDistrict ? (
-          <span className="bg-teal-900/40 border border-teal-700 rounded px-2 py-1 text-xs text-teal-300 font-medium">
-            {lockedDistrict}
-          </span>
+        {lockedSemisId ? (
+          <>
+            <span className="text-xs text-gray-400 font-medium shrink-0">School:</span>
+            <span className="bg-teal-900/40 border border-teal-700 rounded px-2 py-1 text-xs text-teal-300 font-medium">
+              {lockedLabel || 'Your school'}
+            </span>
+          </>
         ) : (
-          <select
-            aria-label="Cohort district"
-            title="Cohort district"
-            value={district}
-            onChange={(e) => { setDistrict(e.target.value); resetData() }}
-            className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200 outline-none focus:border-teal-500 max-w-[12rem]"
-          >
-            <option value="">All districts</option>
-            {districtOptions.map((d) => (
-              <option key={d} value={d}>{d}</option>
-            ))}
-          </select>
+          <>
+            <span className="text-xs text-gray-400 font-medium shrink-0">District:</span>
+            {lockedDistrict ? (
+              <span className="bg-teal-900/40 border border-teal-700 rounded px-2 py-1 text-xs text-teal-300 font-medium">
+                {lockedDistrict}
+              </span>
+            ) : (
+              <select
+                aria-label="Cohort district"
+                title="Cohort district"
+                value={district}
+                onChange={(e) => { setDistrict(e.target.value); resetData() }}
+                className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200 outline-none focus:border-teal-500 max-w-[12rem]"
+              >
+                <option value="">All districts</option>
+                {districtOptions.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            )}
+          </>
         )}
         <div className="flex items-center gap-2 ml-auto flex-wrap">
           <input type="date" value={from} title="From date" placeholder="From"
@@ -248,6 +269,7 @@ export default function StedaDashboard({ lockedDistrict, scoped }: StedaDashboar
             if (from) q.set('from', from)
             if (to) q.set('to', to)
             if (district) q.set('district', district)
+            if (semisId) q.set('semisId', semisId)
             window.location.href = `/api/steda/export-csv?${q.toString()}`
           }}
             className="px-3 py-1 bg-amber-600 hover:bg-amber-500 text-white text-xs rounded font-medium transition-colors">
@@ -285,15 +307,17 @@ export default function StedaDashboard({ lockedDistrict, scoped }: StedaDashboar
       </Panel>
 
       {/* ── Row 5: Engagement Depth + Top Schools ────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className={hideSchoolsTable ? 'grid grid-cols-1' : 'grid grid-cols-1 lg:grid-cols-2 gap-6'}>
         <Panel loading={!depth} slow={slow}>
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           {depth && ov && <EngagementDepthChart data={depth as any} totalJoined={ov.totalJoined} />}
         </Panel>
-        <Panel loading={!schools} slow={slow}>
-          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          {schools && <TopSchoolsTable data={schools as any} />}
-        </Panel>
+        {!hideSchoolsTable && (
+          <Panel loading={!schools} slow={slow}>
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {schools && <TopSchoolsTable data={schools as any} />}
+          </Panel>
+        )}
       </div>
 
       {/* ── Row 6: Activation Timeline ───────────────────────────────── */}

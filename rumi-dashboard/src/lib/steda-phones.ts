@@ -9,6 +9,7 @@ export interface SteadaTeacher {
   schoolType: string // Public | Private
   name: string
   school: string
+  semisId: string
 }
 
 export interface SteadaData {
@@ -74,6 +75,7 @@ export function getSteadaData(): SteadaData {
     schoolType:  headers.indexOf('Government_Private'),
     name:        headers.indexOf('NameOfParticipant'),
     school:      headers.indexOf('NameOfSchool'),
+    semisId:     headers.indexOf('SEMISID'),
   }
 
   const teachers: SteadaTeacher[] = []
@@ -95,12 +97,13 @@ export function getSteadaData(): SteadaData {
     const sType       = (cols[idx.schoolType]  || '').trim()
     const name        = (cols[idx.name]        || '').trim()
     const school      = (cols[idx.school]      || '').trim()
+    const semisId     = (cols[idx.semisId]     || '').trim()
 
     const phone = normPhone(rawPhone)
     if (!phone) continue
 
     phones.push(phone)
-    teachers.push({ phone, district, designation, gender: gen, schoolType: sType, name, school })
+    teachers.push({ phone, district, designation, gender: gen, schoolType: sType, name, school, semisId })
 
     gender[gen]         = (gender[gen] || 0) + 1
     schoolType[sType]   = (schoolType[sType] || 0) + 1

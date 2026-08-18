@@ -15,14 +15,14 @@ export async function GET(req: NextRequest) {
     const from = sp.get('from') || null
     const to   = sp.get('to')   || null
 
-    const { region, district } = stedaScopeFromSearchParams(sp)
-    const cacheKey = `${region}|${district}|${from}|${to}`
+    const { region, district, semisId } = stedaScopeFromSearchParams(sp)
+    const cacheKey = `${region}|${district}|${semisId}|${from}|${to}`
     const cached = g._topSchoolsCache?.get(cacheKey)
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       return NextResponse.json(cached.data)
     }
 
-    const phones = await getFilteredStedaPhones(region, district)
+    const phones = await getFilteredStedaPhones(region, district, semisId)
     const dc = `AND ($2::date IS NULL OR t.created_at::date >= $2::date) AND ($3::date IS NULL OR t.created_at::date <= $3::date)`
     const p  = [phones, from, to]
 

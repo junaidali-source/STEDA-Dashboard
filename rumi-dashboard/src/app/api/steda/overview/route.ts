@@ -16,9 +16,9 @@ export async function GET(req: NextRequest) {
     const from = sp.get('from') || null   // YYYY-MM-DD
     const to   = sp.get('to')   || null
 
-    const { region, district } = stedaScopeFromSearchParams(sp)
-    const phones = await getFilteredStedaPhones(region, district)
-    const teachers = await getFilteredStedaTeachers(region, district)
+    const { region, district, semisId } = stedaScopeFromSearchParams(sp)
+    const phones = await getFilteredStedaPhones(region, district, semisId)
+    const teachers = await getFilteredStedaTeachers(region, district, semisId)
     const totalListed = teachers.length
     if (phones.length === 0) {
       const empty = { total: 0, completed: 0, users: 0, completionPct: 0 }
