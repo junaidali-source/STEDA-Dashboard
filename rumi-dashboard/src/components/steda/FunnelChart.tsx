@@ -6,10 +6,11 @@ interface Props {
   anyFeatureUsers: number
 }
 
+// Ordinal funnel — one hue, light→dark (navy), not disconnected categorical colors.
 const STAGES = [
-  { key: 'listed',    label: 'Teachers Listed by STEDA',   barClass: 'bg-blue-500'  },
-  { key: 'joined',    label: 'Joined Rumi (Phone Matched)', barClass: 'bg-teal-500'  },
-  { key: 'activated', label: 'Used Any Rumi Feature',       barClass: 'bg-amber-400' },
+  { key: 'listed',    label: 'Teachers Listed by STEDA',   barStyle: { backgroundColor: '#93C5FD' } },
+  { key: 'joined',    label: 'Joined Rumi (Phone Matched)', barStyle: { backgroundColor: '#4F74E3' } },
+  { key: 'activated', label: 'Used Any Rumi Feature',       barStyle: { backgroundColor: '#1D4ED8' } },
 ]
 
 export default function FunnelChart({ totalListed, totalJoined, anyFeatureUsers }: Props) {
@@ -32,8 +33,8 @@ export default function FunnelChart({ totalListed, totalJoined, anyFeatureUsers 
               </div>
               <div className="relative h-12 bg-gray-800 rounded-lg overflow-hidden">
                 <div
-                  className={`h-full rounded-lg flex items-center justify-center transition-all duration-700 ${stage.barClass}`}
-                  style={{ width: `${widthPct}%` }}
+                  className="h-full rounded-lg flex items-center justify-center transition-all duration-700"
+                  style={{ width: `${widthPct}%`, ...stage.barStyle }}
                 >
                   <span className="text-white font-bold text-base">{val.toLocaleString()}</span>
                 </div>

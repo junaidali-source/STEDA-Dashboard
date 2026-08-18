@@ -4,6 +4,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer,
 } from 'recharts'
+import { featureColor } from '@/lib/feature-colors'
 
 interface TrendRow {
   day:          string
@@ -17,11 +18,11 @@ interface TrendRow {
 interface Props { data: TrendRow[] }
 
 const FEATURES = [
-  { key: 'lesson_plans', label: 'Lesson Plans',     color: '#3B82F6' },
-  { key: 'coaching',     label: 'Coaching',          color: '#F59E0B' },
-  { key: 'reading',      label: 'Reading',           color: '#8B5CF6' },
-  { key: 'video',        label: 'Video Generation',  color: '#22C55E' },
-  { key: 'image',        label: 'Image Analysis',    color: '#EC4899' },
+  { key: 'lesson_plans', label: 'Lesson Plans',     color: featureColor('Lesson Plans') },
+  { key: 'coaching',     label: 'Coaching',          color: featureColor('Coaching') },
+  { key: 'reading',      label: 'Reading',           color: featureColor('Reading') },
+  { key: 'video',        label: 'Video Generation',  color: featureColor('Video Generation') },
+  { key: 'image',        label: 'Image Analysis',    color: featureColor('Image Analysis') },
 ]
 
 export default function FeatureTrendsChart({ data }: Props) {

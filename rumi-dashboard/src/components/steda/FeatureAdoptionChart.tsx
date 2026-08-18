@@ -4,6 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, LabelList,
 } from 'recharts'
+import { featureColor } from '@/lib/feature-colors'
 
 export interface FeatureRow {
   feature:        string
@@ -11,14 +12,6 @@ export interface FeatureRow {
   requests:       number
   completed:      number
   completion_pct: number
-}
-
-const FEATURE_COLORS: Record<string, string> = {
-  'Lesson Plans':     '#3B82F6',
-  'Coaching Sessions': '#F59E0B',
-  'Reading Assessments': '#8B5CF6',
-  'Video Generation': '#22C55E',
-  'Image Analysis':   '#EC4899',
 }
 
 interface Props {
@@ -30,7 +23,7 @@ export default function FeatureAdoptionChart({ data, totalJoined }: Props) {
   const chartData = data.map(r => ({
     ...r,
     adoptionPct: totalJoined > 0 ? Math.round((r.users / totalJoined) * 100) : 0,
-    color: FEATURE_COLORS[r.feature] ?? '#64748B',
+    color: featureColor(r.feature),
   }))
 
   return (

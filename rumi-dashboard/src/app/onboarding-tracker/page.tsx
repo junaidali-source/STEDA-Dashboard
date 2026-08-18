@@ -7,6 +7,7 @@ import {
   getScopedRoster, getLiveJoinStatus, getCoachingDetails, resolveLiveStatus, resolveUsage, summarizeLive,
   type OnboardingScope, type LiveStatus, type FeatureStat,
 } from '@/lib/onboarding-tracker'
+import { featureColor } from '@/lib/feature-colors'
 import StedaDashboard from '@/components/steda/StedaDashboard'
 
 export const dynamic = 'force-dynamic'
@@ -25,10 +26,13 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
   )
 }
 
-function FeatureCard({ dot, label, stat }: { dot: string; label: string; stat: FeatureStat }) {
+function FeatureCard({ label, stat }: { label: string; stat: FeatureStat }) {
   return (
     <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
-      <p className="text-xs text-gray-400 flex items-center gap-1.5"><span className={`w-2 h-2 rounded-full ${dot}`} />{label}</p>
+      <p className="text-xs text-gray-400 flex items-center gap-1.5">
+        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: featureColor(label) }} />
+        {label}
+      </p>
       <p className="text-2xl font-bold text-white mt-1">{stat.completed}</p>
       <p className="text-xs text-gray-500 mt-0.5">{stat.teachers} teacher{stat.teachers === 1 ? '' : 's'}</p>
     </div>
@@ -136,11 +140,11 @@ export default async function OnboardingTrackerPage({
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            <FeatureCard dot="bg-blue-400" label="Lesson Plans" stat={stats.features.lessonPlans} />
-            <FeatureCard dot="bg-amber-400" label="Coaching" stat={stats.features.coaching} />
-            <FeatureCard dot="bg-purple-400" label="Reading" stat={stats.features.reading} />
-            <FeatureCard dot="bg-emerald-400" label="Video Generation" stat={stats.features.video} />
-            <FeatureCard dot="bg-pink-400" label="Image Analysis" stat={stats.features.image} />
+            <FeatureCard label="Lesson Plans" stat={stats.features.lessonPlans} />
+            <FeatureCard label="Coaching" stat={stats.features.coaching} />
+            <FeatureCard label="Reading" stat={stats.features.reading} />
+            <FeatureCard label="Video Generation" stat={stats.features.video} />
+            <FeatureCard label="Image Analysis" stat={stats.features.image} />
           </div>
 
           <CoachingDetailSection rows={rows} liveStatusError={liveStatusError} />

@@ -81,7 +81,7 @@ export default function StedaOnboardingSnapshot() {
   if (!data) {
     return (
       <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
-        <div className="h-8 w-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto" />
+        <div className="h-8 w-8 border-4 border-coral border-t-transparent rounded-full animate-spin mx-auto" />
       </div>
     )
   }

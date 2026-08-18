@@ -1,5 +1,7 @@
 'use client'
 
+import { featureColor } from '@/lib/feature-colors'
+
 interface FeatureStat {
   total: number
   completed: number
@@ -29,17 +31,17 @@ export default function KPIBanner({
 
   const kpis = [
     { label: 'Teachers Listed',  value: totalListed.toLocaleString(),     sub: 'STEDA cohort',               borderClass: 'border-l-blue-500'  },
-    { label: 'Joined Rumi',      value: totalJoined.toLocaleString(),     sub: `${joinedPct}% of listed`,    borderClass: 'border-l-teal-500'  },
+    { label: 'Joined Rumi',      value: totalJoined.toLocaleString(),     sub: `${joinedPct}% of listed`,    borderClass: 'border-l-coral'  },
     { label: 'Used Any Feature', value: anyFeatureUsers.toLocaleString(), sub: `${anyFeaturePct}% of joined`, borderClass: 'border-l-amber-400' },
     { label: 'Total Requests',   value: totalRequests.toLocaleString(),   sub: `${overallRate}% completion`,  borderClass: 'border-l-green-400' },
   ]
 
   const features = [
-    { label: 'Lesson Plans',     users: lp.users,       total: lp.total,       pct: lp.completionPct,       dotClass: 'bg-blue-500'   },
-    { label: 'Coaching',         users: coaching.users,  total: coaching.total,  pct: coaching.completionPct,  dotClass: 'bg-amber-400'  },
-    { label: 'Reading',          users: reading.users,   total: reading.total,   pct: reading.completionPct,   dotClass: 'bg-violet-500' },
-    { label: 'Video Generation', users: video.users,     total: video.total,     pct: video.completionPct,     dotClass: 'bg-green-400'  },
-    { label: 'Image Analysis',   users: image.users,     total: image.total,     pct: image.completionPct,     dotClass: 'bg-pink-500'   },
+    { label: 'Lesson Plans',     users: lp.users,       total: lp.total,       pct: lp.completionPct },
+    { label: 'Coaching',         users: coaching.users,  total: coaching.total,  pct: coaching.completionPct },
+    { label: 'Reading',          users: reading.users,   total: reading.total,   pct: reading.completionPct },
+    { label: 'Video Generation', users: video.users,     total: video.total,     pct: video.completionPct },
+    { label: 'Image Analysis',   users: image.users,     total: image.total,     pct: image.completionPct },
   ]
 
   return (
@@ -60,7 +62,7 @@ export default function KPIBanner({
         {features.map((f) => (
           <div key={f.label} className="bg-gray-900 rounded-lg px-4 py-3 border border-gray-800 flex flex-col gap-1">
             <div className="flex items-center gap-2">
-              <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${f.dotClass}`} />
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: featureColor(f.label) }} />
               <span className="text-xs text-gray-400 truncate">{f.label}</span>
             </div>
             <div className="text-lg font-bold text-white">{f.users.toLocaleString()}</div>

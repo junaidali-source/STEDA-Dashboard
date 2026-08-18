@@ -109,7 +109,7 @@ function WaActivateModal({ onClose }: { onClose: () => void }) {
             {STEPS.map(({ n, label }, i, arr) => (
               <div key={n} className="flex items-center gap-2 flex-1">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                  step > n  ? 'bg-teal-500 text-white'   :
+                  step > n  ? 'bg-coral text-white'   :
                   step === n ? 'bg-indigo-500 text-white' :
                   'bg-gray-800 text-gray-500'
                 }`}>
@@ -117,7 +117,7 @@ function WaActivateModal({ onClose }: { onClose: () => void }) {
                 </div>
                 <span className={`text-xs ${step >= n ? 'text-gray-200' : 'text-gray-600'}`}>{label}</span>
                 {i < arr.length - 1 && (
-                  <div className={`flex-1 h-px ${step > n ? 'bg-teal-500' : 'bg-gray-800'}`} />
+                  <div className={`flex-1 h-px ${step > n ? 'bg-coral' : 'bg-gray-800'}`} />
                 )}
               </div>
             ))}
@@ -127,8 +127,8 @@ function WaActivateModal({ onClose }: { onClose: () => void }) {
           {step === 1 && (
             <div className="space-y-4">
               {config.status === 'authenticated' ? (
-                <div className="flex items-center gap-3 text-sm text-teal-400 bg-teal-900/20 border border-teal-800/30 rounded-lg px-4 py-3">
-                  <div className="w-4 h-4 border-2 border-teal-400 border-t-transparent rounded-full animate-spin shrink-0" />
+                <div className="flex items-center gap-3 text-sm text-coral bg-coral/15 border border-coral/30 rounded-lg px-4 py-3">
+                  <div className="w-4 h-4 border-2 border-coral border-t-transparent rounded-full animate-spin shrink-0" />
                   <span>QR scanned — loading your groups…</span>
                 </div>
               ) : config.qr_code ? (
@@ -209,8 +209,8 @@ function WaActivateModal({ onClose }: { onClose: () => void }) {
           {/* ── Step 3: Confirm ──────────────────────────────────────────── */}
           {step === 3 && (
             <div className="space-y-4">
-              <div className="flex items-center gap-2 text-sm text-teal-400 bg-teal-900/20 border border-teal-800/30 rounded-lg px-4 py-3">
-                <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse shrink-0" />
+              <div className="flex items-center gap-2 text-sm text-coral bg-coral/15 border border-coral/30 rounded-lg px-4 py-3">
+                <span className="w-2 h-2 rounded-full bg-coral animate-pulse shrink-0" />
                 <span>Live stream connected — messages flowing in real-time</span>
               </div>
               <div>
@@ -219,15 +219,15 @@ function WaActivateModal({ onClose }: { onClose: () => void }) {
                 </p>
                 <div className="space-y-1 max-h-40 overflow-y-auto">
                   {Array.from(selected).map(g => (
-                    <div key={g} className="flex items-center gap-2 text-xs px-2 py-1.5 rounded bg-teal-900/30 border border-teal-800/40">
-                      <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
+                    <div key={g} className="flex items-center gap-2 text-xs px-2 py-1.5 rounded bg-coral/15 border border-coral/30">
+                      <span className="w-1.5 h-1.5 rounded-full bg-coral shrink-0" />
                       <span className="text-gray-200">{g}</span>
                     </div>
                   ))}
                 </div>
               </div>
               <button type="button" onClick={onClose}
-                className="w-full py-2 bg-teal-700 hover:bg-teal-600 text-white text-sm rounded-lg font-semibold transition-colors">
+                className="w-full py-2 bg-coral hover:opacity-90 text-white text-sm rounded-lg font-semibold transition-colors">
                 Done
               </button>
             </div>
@@ -316,7 +316,7 @@ export default function SentimentDonut({
           )}
           {showActivate && <WaActivateModal onClose={() => setShowActivate(false)} />}
           {relativeTime && (
-            <span className="text-xs text-teal-400 bg-teal-900/40 px-2 py-1 rounded-full">
+            <span className="text-xs text-coral bg-coral/15 px-2 py-1 rounded-full">
               updated {relativeTime}
             </span>
           )}
@@ -407,7 +407,7 @@ export default function SentimentDonut({
       {/* Teacher voice quotes */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {praiseQuotes.slice(0, 2).map((q, i) => (
-          <blockquote key={i} className="border-l-2 border-teal-500 pl-3 py-1.5 bg-gray-800 rounded-r text-xs text-gray-300 italic">
+          <blockquote key={i} className="border-l-2 border-coral pl-3 py-1.5 bg-gray-800 rounded-r text-xs text-gray-300 italic">
             &ldquo;{q.text}&rdquo;
             <footer className="text-gray-500 mt-1 not-italic">— {q.speaker}</footer>
           </blockquote>

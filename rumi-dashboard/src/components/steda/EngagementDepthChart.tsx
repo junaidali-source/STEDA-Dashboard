@@ -1,6 +1,7 @@
 'use client'
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts'
+import { ENGAGEMENT_DEPTH_RAMP } from '@/lib/feature-colors'
 
 interface DepthRow {
   feature_count: number
@@ -13,19 +14,11 @@ interface Props {
   totalJoined: number
 }
 
-const DEPTH_COLORS: Record<number, string> = {
-  0: '#334155',
-  1: '#3B82F6',
-  2: '#F59E0B',
-  3: '#22C55E',
-  4: '#EC4899',
-}
-
 export default function EngagementDepthChart({ data, totalJoined }: Props) {
   const chartData = data.map(r => ({
     ...r,
     pct: totalJoined > 0 ? Math.round((r.teachers / totalJoined) * 100) : 0,
-    color: DEPTH_COLORS[Math.min(r.feature_count, 4)] ?? '#64748B',
+    color: ENGAGEMENT_DEPTH_RAMP[Math.min(r.feature_count, 4)] ?? '#64748B',
   }))
 
   // Summary insight
@@ -40,7 +33,7 @@ export default function EngagementDepthChart({ data, totalJoined }: Props) {
       {/* Summary callouts */}
       <div className="grid grid-cols-2 gap-3 mb-5">
         <div className="bg-gray-800 rounded-lg p-3 text-center">
-          <div className="text-xl font-bold text-teal-400">{engaged.toLocaleString()}</div>
+          <div className="text-xl font-bold text-coral">{engaged.toLocaleString()}</div>
           <div className="text-xs text-gray-400 mt-0.5">Used at least 1 feature</div>
         </div>
         <div className="bg-gray-800 rounded-lg p-3 text-center">
