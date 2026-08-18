@@ -257,6 +257,67 @@ export function resolveUsage(
   }
 }
 
+export interface CoachingDetail {
+  sessionsCompleted: number
+  firstScore: number | null
+  latestScore: number | null
+  avgScore: number | null
+  improvement: number | null
+  lastSessionDate: string | null
+}
+
+const COACHING_PCT = `COALESCE(cs.analysis_data->'scores'->>'percentage', cs.analysis_data->'scores'->>'overall_percentage')`
+
+// Per-teacher coaching session history: how many completed, their first vs.
+// most recent overall score, and the improvement between them.
+export async function getCoachingDetails(phones: string[]): Promise<Record<string, CoachingDetail>> {
+  const map: Record<string, CoachingDetail> = {}
+  const uniquePhones = Array.from(new Set(phones.filter(Boolean)))
+  if (uniquePhones.length === 0) return map
+
+  const usersRes = await pool.query(
+    `SELECT id, phone_number FROM users
+     WHERE phone_number = ANY($1::text[]) AND COALESCE(is_test_user, false) = false`,
+    [uniquePhones]
+  )
+  const idToPhone = new Map<string, string>()
+  for (const row of usersRes.rows as { id: string; phone_number: string }[]) {
+    idToPhone.set(row.id, row.phone_number)
+  }
+  const ids = Array.from(idToPhone.keys())
+  if (ids.length === 0) return map
+
+  const res = await pool.query(
+    `SELECT
+       cs.user_id,
+       COUNT(*)::int AS sessions,
+       MAX(cs.created_at) AS last_date,
+       ROUND(AVG((${COACHING_PCT})::numeric) FILTER (WHERE ${COACHING_PCT} IS NOT NULL), 1) AS avg_score,
+       (array_agg((${COACHING_PCT})::numeric ORDER BY cs.created_at ASC)  FILTER (WHERE ${COACHING_PCT} IS NOT NULL))[1] AS first_score,
+       (array_agg((${COACHING_PCT})::numeric ORDER BY cs.created_at DESC) FILTER (WHERE ${COACHING_PCT} IS NOT NULL))[1] AS latest_score
+     FROM coaching_sessions cs
+     WHERE cs.user_id = ANY($1::uuid[]) AND cs.status = 'completed'
+     GROUP BY cs.user_id`,
+    [ids]
+  )
+  for (const row of res.rows as { user_id: string; sessions: number; last_date: string; avg_score: string | null; first_score: string | null; latest_score: string | null }[]) {
+    const phone = idToPhone.get(row.user_id)
+    if (!phone) continue
+    const first = row.first_score !== null ? Number(row.first_score) : null
+    const latest = row.latest_score !== null ? Number(row.latest_score) : null
+    map[phone] = {
+      sessionsCompleted: row.sessions,
+      firstScore: first,
+      latestScore: latest,
+      avgScore: row.avg_score !== null ? Number(row.avg_score) : null,
+      improvement: first !== null && latest !== null ? Math.round((latest - first) * 10) / 10 : null,
+      lastSessionDate: row.last_date,
+    }
+  }
+
+  return map
+}
+
 export function summarizeLive(rows: OnboardingTeacher[], live: Record<string, LiveStatusInfo>, liveUnavailable: boolean) {
   let active = 0, joined = 0, pending = 0, totalLp = 0, totalCoaching = 0
   const bySchool: Record<string, number> = {}

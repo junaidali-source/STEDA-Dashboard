@@ -15,7 +15,7 @@ export default function StedaPage() {
       <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-teal-400">STEDA × Rumi</h1>
+            <h1 className="text-2xl font-bold text-coral">STEDA × Rumi</h1>
             <p className="text-lg font-semibold text-white mt-0.5">Partnership Impact Report</p>
             <p className="text-sm text-gray-400 mt-1">AI-Powered Teaching Pilot — Sindh Province, Pakistan</p>
           </div>

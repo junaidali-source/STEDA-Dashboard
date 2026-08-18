@@ -10,7 +10,7 @@ const ALL_TABS = [
   { href: '/steda/cohorts',  label: 'Cohorts',      roles: ['admin', 'steda'] },
   { href: '/coaching',       label: 'Coaching',     roles: ['admin', 'steda'] },
   { href: '/tracker',  label: 'Tracker',       roles: ['admin'] },
-  { href: '/onboarding-tracker', label: 'Onboarding Tracker', roles: ['admin', 'principal', 'deo'] },
+  { href: '/onboarding-tracker', label: 'Rumi Dashboard', roles: ['admin', 'principal', 'deo'] },
 ]
 
 export default function NavTabs({ role }: { role: string }) {
@@ -23,8 +23,8 @@ export default function NavTabs({ role }: { role: string }) {
         <Link key={t.href} href={t.href}
           className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
             (t.href === '/' ? path === '/' : t.href === '/steda' ? path === '/steda' : path.startsWith(t.href))
-              ? 'bg-indigo-600 text-white'
-              : 'text-gray-300 hover:text-white hover:bg-gray-800'
+              ? 'bg-coral text-white'
+              : 'text-gray-300 hover:text-white hover:bg-white/10'
           }`}>
           {t.label}
         </Link>

@@ -23,12 +23,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en">
       <body className={`${inter.className} bg-gray-50 min-h-screen antialiased`}>
         {session && (
-          <header className="bg-gray-900 sticky top-0 z-50 border-b border-gray-800">
+          <header className="bg-navy-dark sticky top-0 z-50 border-b border-white/10">
             <div className="max-w-screen-2xl mx-auto px-6 flex items-center gap-6 h-14">
               <div className="flex items-center gap-2 shrink-0">
-                <div className="w-7 h-7 bg-indigo-500 rounded-md flex items-center justify-center">
-                  <span className="text-white text-xs font-bold select-none">R</span>
-                </div>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/brand/rumi-mark-white-square.png" alt="Rumi" className="h-7 w-7 rounded-md" />
                 <span className="text-white font-semibold text-sm">Rumi Analytics</span>
               </div>
 

@@ -19,7 +19,7 @@ import StedaOnboardingSnapshot from './StedaOnboardingSnapshot'
 function Spinner({ slow }: { slow?: boolean }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 gap-3">
-      <div className="h-8 w-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin" />
+      <div className="h-8 w-8 border-4 border-coral border-t-transparent rounded-full animate-spin" />
       {slow && <p className="text-xs text-gray-500">Connecting to database…</p>}
     </div>
   )
@@ -216,7 +216,7 @@ export default function StedaDashboard({ lockedDistrict, lockedSemisId, lockedLa
           {PRESETS.map(p => (
             <button type="button" key={p.label} onClick={() => applyPreset(p)}
               className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                preset === p.label ? 'bg-teal-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                preset === p.label ? 'bg-coral text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
               }`}>
               {p.label}
             </button>
@@ -225,7 +225,7 @@ export default function StedaDashboard({ lockedDistrict, lockedSemisId, lockedLa
         {lockedSemisId ? (
           <>
             <span className="text-xs text-gray-400 font-medium shrink-0">School:</span>
-            <span className="bg-teal-900/40 border border-teal-700 rounded px-2 py-1 text-xs text-teal-300 font-medium">
+            <span className="bg-coral/15 border border-coral/40 rounded px-2 py-1 text-xs text-coral font-medium">
               {lockedLabel || 'Your school'}
             </span>
           </>
@@ -233,7 +233,7 @@ export default function StedaDashboard({ lockedDistrict, lockedSemisId, lockedLa
           <>
             <span className="text-xs text-gray-400 font-medium shrink-0">District:</span>
             {lockedDistrict ? (
-              <span className="bg-teal-900/40 border border-teal-700 rounded px-2 py-1 text-xs text-teal-300 font-medium">
+              <span className="bg-coral/15 border border-coral/40 rounded px-2 py-1 text-xs text-coral font-medium">
                 {lockedDistrict}
               </span>
             ) : (
@@ -242,7 +242,7 @@ export default function StedaDashboard({ lockedDistrict, lockedSemisId, lockedLa
                 title="Cohort district"
                 value={district}
                 onChange={(e) => { setDistrict(e.target.value); resetData() }}
-                className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200 outline-none focus:border-teal-500 max-w-[12rem]"
+                className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200 outline-none focus:border-coral max-w-[12rem]"
               >
                 <option value="">All districts</option>
                 {districtOptions.map((d) => (
@@ -255,13 +255,13 @@ export default function StedaDashboard({ lockedDistrict, lockedSemisId, lockedLa
         <div className="flex items-center gap-2 ml-auto flex-wrap">
           <input type="date" value={from} title="From date" placeholder="From"
             onChange={e => { setFrom(e.target.value); setPreset('Custom') }}
-            className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200 outline-none focus:border-teal-500" />
+            className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200 outline-none focus:border-coral" />
           <span className="text-gray-500 text-xs">to</span>
           <input type="date" value={to} title="To date" placeholder="To"
             onChange={e => { setTo(e.target.value); setPreset('Custom') }}
-            className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200 outline-none focus:border-teal-500" />
+            className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200 outline-none focus:border-coral" />
           <button type="button" onClick={applyCustom}
-            className="px-3 py-1 bg-teal-700 hover:bg-teal-600 text-white text-xs rounded font-medium transition-colors">
+            className="px-3 py-1 bg-coral hover:opacity-90 text-white text-xs rounded font-medium transition-opacity">
             Apply
           </button>
           <button type="button" onClick={() => {

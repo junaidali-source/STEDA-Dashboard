@@ -9,8 +9,8 @@ export default function Home() {
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-8">
         <header className="border-b border-slate-200/80 pb-6">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-indigo-600">Rumi Analytics</p>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight mt-1">Platform analytics dashboard</h1>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-coral">Rumi Analytics</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-navy-dark tracking-tight mt-1">Platform analytics dashboard</h1>
           <p className="text-sm text-slate-600 mt-2 max-w-2xl leading-relaxed">
             Consolidated platform performance for admin users, with filters by country, partner, region, and dates plus unique user usage details.
           </p>
