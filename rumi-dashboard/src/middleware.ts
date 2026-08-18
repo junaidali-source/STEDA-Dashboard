@@ -23,10 +23,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/steda', request.url))
   }
 
-  // Principal / DEO: only the onboarding tracker and its API route are allowed
+  // Principal / DEO: only the onboarding tracker page is allowed, plus the
+  // read-only STEDA data API it embeds (not the /steda admin page itself)
   if ((session.role === 'principal' || session.role === 'deo') &&
       !pathname.startsWith('/onboarding-tracker') &&
-      !pathname.startsWith('/api/onboarding-tracker')) {
+      !pathname.startsWith('/api/onboarding-tracker') &&
+      !pathname.startsWith('/api/steda')) {
     return NextResponse.redirect(new URL('/onboarding-tracker', request.url))
   }
 

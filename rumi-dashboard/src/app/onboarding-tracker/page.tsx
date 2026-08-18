@@ -1,10 +1,12 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
 import { verifySessionToken } from '@/lib/auth'
 import {
   getScopedRoster, getLiveJoinStatus, resolveLiveStatus, resolveUsage, summarizeLive,
   type OnboardingScope, type LiveStatus,
 } from '@/lib/onboarding-tracker'
+import StedaDashboard from '@/components/steda/StedaDashboard'
 
 export const dynamic = 'force-dynamic'
 
@@ -151,6 +153,18 @@ export default async function OnboardingTrackerPage() {
           </table>
         </div>
       </div>
+
+      {session.role === 'deo' && scope?.type === 'district' && (
+        <div className="space-y-4">
+          <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+            <h2 className="text-xl font-bold text-teal-400">District Program Impact</h2>
+            <p className="text-sm text-gray-400 mt-1">All STEDA-cohort schools in {scope.value}</p>
+          </div>
+          <Suspense>
+            <StedaDashboard lockedDistrict={scope.value} scoped />
+          </Suspense>
+        </div>
+      )}
     </main>
   )
 }

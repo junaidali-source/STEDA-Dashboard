@@ -47,11 +47,18 @@ function today() { return new Date().toISOString().slice(0, 10) }
 function daysAgo(n: number) { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10) }
 function firstOfMonth() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01` }
 
-export default function StedaDashboard() {
+interface StedaDashboardProps {
+  /** Lock the district filter to this value and hide the picker (DEO scope). */
+  lockedDistrict?: string
+  /** Hide province-wide-only panels that don't make sense for a single district/school. */
+  scoped?: boolean
+}
+
+export default function StedaDashboard({ lockedDistrict, scoped }: StedaDashboardProps = {}) {
   const [from, setFrom] = useState('')
   const [to,   setTo]   = useState('')
   const [preset, setPreset] = useState('All Time')
-  const [district, setDistrict] = useState('')
+  const [district, setDistrict] = useState(lockedDistrict || '')
   const [districtOptions, setDistrictOptions] = useState<string[]>([])
 
   const [overview,     setOverview]     = useState<Overview | null>(null)
@@ -92,10 +99,10 @@ export default function StedaDashboard() {
       // Load critical endpoints first (avoid timeout)
       const [ov, di, de, tl, se, ad, dp, tr] = await Promise.all([
         safeJsonFetch(`/api/steda/overview${q}`),
-        safeJsonFetch(`/api/steda/districts${q}`),
+        scoped ? Promise.resolve([]) : safeJsonFetch(`/api/steda/districts${q}`),
         safeJsonFetch(`/api/steda/demographics${q}`),
         safeJsonFetch(`/api/steda/timeline${q}`),
-        safeJsonFetch(`/api/steda/sentiment`),
+        scoped ? Promise.resolve(null) : safeJsonFetch(`/api/steda/sentiment`),
         safeJsonFetch(`/api/steda/feature-adoption${q}`),
         safeJsonFetch(`/api/steda/engagement-depth${q}`),
         safeJsonFetch(`/api/steda/feature-trends${q}`),
@@ -119,18 +126,19 @@ export default function StedaDashboard() {
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Unknown error')
     }
-  }, [stedaQuery, safeJsonFetch])
+  }, [stedaQuery, safeJsonFetch, scoped])
 
   const fetchAllRef = useRef(fetchAll)
   fetchAllRef.current = fetchAll
 
   useEffect(() => {
+    if (lockedDistrict) return
     safeJsonFetch('/api/steda/filters')
       .then((d) => {
         if (Array.isArray(d.districts)) setDistrictOptions(d.districts)
       })
       .catch((err) => console.error('Failed to load filters:', err))
-  }, [safeJsonFetch])
+  }, [safeJsonFetch, lockedDistrict])
 
   // Load + refresh when date range or geography changes; 5m poll; WhatsApp realtime for sentiment
   useEffect(() => {
@@ -140,6 +148,10 @@ export default function StedaDashboard() {
     fetchAll().then(() => { clearTimeout(slowTimer); clearTimeout(deadTimer) })
 
     const refresh = setInterval(() => fetchAllRef.current(), 5 * 60 * 1000)
+
+    if (scoped) {
+      return () => { clearTimeout(slowTimer); clearTimeout(deadTimer); clearInterval(refresh) }
+    }
 
     const channel = supabaseBrowser
       .channel('whatsapp-live')
@@ -153,7 +165,7 @@ export default function StedaDashboard() {
       clearInterval(refresh)
       supabaseBrowser.removeChannel(channel)
     }
-  }, [fetchAll])
+  }, [fetchAll, scoped])
 
   function applyPreset(p: typeof PRESETS[0]) {
     setPreset(p.label)
@@ -201,18 +213,24 @@ export default function StedaDashboard() {
           ))}
         </div>
         <span className="text-xs text-gray-400 font-medium shrink-0">District:</span>
-        <select
-          aria-label="Cohort district"
-          title="Cohort district"
-          value={district}
-          onChange={(e) => { setDistrict(e.target.value); resetData() }}
-          className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200 outline-none focus:border-teal-500 max-w-[12rem]"
-        >
-          <option value="">All districts</option>
-          {districtOptions.map((d) => (
-            <option key={d} value={d}>{d}</option>
-          ))}
-        </select>
+        {lockedDistrict ? (
+          <span className="bg-teal-900/40 border border-teal-700 rounded px-2 py-1 text-xs text-teal-300 font-medium">
+            {lockedDistrict}
+          </span>
+        ) : (
+          <select
+            aria-label="Cohort district"
+            title="Cohort district"
+            value={district}
+            onChange={(e) => { setDistrict(e.target.value); resetData() }}
+            className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200 outline-none focus:border-teal-500 max-w-[12rem]"
+          >
+            <option value="">All districts</option>
+            {districtOptions.map((d) => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+        )}
         <div className="flex items-center gap-2 ml-auto flex-wrap">
           <input type="date" value={from} title="From date" placeholder="From"
             onChange={e => { setFrom(e.target.value); setPreset('Custom') }}
@@ -240,7 +258,7 @@ export default function StedaDashboard() {
       </div>
 
       {/* ── Row 1: KPI Banner ────────────────────────────────────────── */}
-      <StedaOnboardingSnapshot />
+      {!scoped && <StedaOnboardingSnapshot />}
 
       {/* ── Row 2: KPI Banner ────────────────────────────────────────── */}
       <Panel loading={!ov} slow={slow}>
@@ -284,11 +302,13 @@ export default function StedaDashboard() {
         {timeline && <TimelineChart data={timeline as any} />}
       </Panel>
 
-      {/* ── Row 7: District Breakdown ────────────────────────────────── */}
-      <Panel loading={!districts} slow={slow}>
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        {districts && <DistrictChart data={districts as any} />}
-      </Panel>
+      {/* ── Row 7: District Breakdown (province-wide only) ───────────── */}
+      {!scoped && (
+        <Panel loading={!districts} slow={slow}>
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+          {districts && <DistrictChart data={districts as any} />}
+        </Panel>
+      )}
 
       {/* ── Row 8: Demographics + Designation ────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -307,7 +327,8 @@ export default function StedaDashboard() {
         </Panel>
       </div>
 
-      {/* ── Row 9: Community Sentiment ───────────────────────────────── */}
+      {/* ── Row 9: Community Sentiment (community-wide, not scopable) ─── */}
+      {!scoped && (
       <Panel loading={!sentiment} slow={slow}>
         {sentiment && (
           <SentimentDonut
@@ -335,6 +356,7 @@ export default function StedaDashboard() {
             }} />
         )}
       </Panel>
+      )}
     </div>
   )
 }
