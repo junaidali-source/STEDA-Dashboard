@@ -159,7 +159,7 @@ export default function StedaDashboard({ lockedDistrict, lockedSemisId, lockedLa
 
     const refresh = setInterval(() => fetchAllRef.current(), 5 * 60 * 1000)
 
-    if (scoped) {
+    if (scoped || !supabaseBrowser) {
       return () => { clearTimeout(slowTimer); clearTimeout(deadTimer); clearInterval(refresh) }
     }
 

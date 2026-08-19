@@ -8,8 +8,8 @@ export async function POST(request: NextRequest) {
   const result = validateCredentials(username, password)
   if (!result) return NextResponse.json({ error: 'Invalid username or password' }, { status: 401 })
 
-  const token = await createSessionToken(username, result.role, result.scope, result.semisId)
-  const res   = NextResponse.json({ role: result.role })
+  const token = await createSessionToken(username, result.role, result.scope, result.semisId, result.region)
+  const res   = NextResponse.json({ role: result.role, region: result.region })
   res.cookies.set('session', token, {
     httpOnly: true,
     secure:   process.env.NODE_ENV === 'production',
