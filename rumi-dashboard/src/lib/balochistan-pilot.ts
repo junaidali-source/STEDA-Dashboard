@@ -32,19 +32,33 @@ export interface ConsideredTeacher {
   reading_assessments_count: number
 }
 
+// NOTE: users.lesson_plans_count / coaching_sessions_count / coaching_avg_percentage
+// are pre-aggregated summary columns that are NOT kept in sync — verified against
+// real teachers (2026-08) showing 0 while the base tables had 4 and 6 completed
+// lesson plans respectively. Every count here is computed directly from the base
+// tables instead; never reintroduce those summary columns for KPI reporting.
 export async function getConsideredTeachers(): Promise<ConsideredTeacher[]> {
   const res = await pool.query(
     `SELECT u.id, u.phone_number, u.name, u.school_name, u.emis_code, u.registration_completed,
-            u.created_at, u.last_activity_at, u.coaching_avg_percentage,
-            COALESCE(u.lesson_plans_count, 0) AS lesson_plans_count,
-            COALESCE(u.coaching_sessions_count, 0) AS coaching_sessions_count,
-            COALESCE(u.reading_assessments_count, 0) AS reading_assessments_count
+            u.created_at, u.last_activity_at,
+            (SELECT ROUND(AVG((${COACHING_PCT})::numeric), 1)
+             FROM coaching_sessions cs
+             WHERE cs.user_id = u.id AND cs.status = 'completed' AND (${COACHING_PCT}) IS NOT NULL) AS coaching_avg_percentage,
+            (SELECT COUNT(*)::int FROM lesson_plan_requests lpr
+             WHERE lpr.user_id = u.id AND lpr.status = 'completed') AS lesson_plans_count,
+            (SELECT COUNT(*)::int FROM coaching_sessions cs
+             WHERE cs.user_id = u.id AND cs.status = 'completed') AS coaching_sessions_count,
+            (SELECT COUNT(*)::int FROM reading_assessments ra
+             WHERE ra.user_id = u.id AND ra.status = 'completed') AS reading_assessments_count
      FROM users u
      WHERE ${BALOCHISTAN_USER_FILTER}
      ORDER BY u.created_at ASC`,
     [ENROLLMENT_CUTOFF]
   )
-  return res.rows
+  return res.rows.map((r: Omit<ConsideredTeacher, 'coaching_avg_percentage'> & { coaching_avg_percentage: string | null }) => ({
+    ...r,
+    coaching_avg_percentage: r.coaching_avg_percentage !== null ? Number(r.coaching_avg_percentage) : null,
+  }))
 }
 
 export interface OnboardingBaseline {
