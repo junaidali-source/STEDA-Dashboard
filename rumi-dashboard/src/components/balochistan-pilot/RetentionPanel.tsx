@@ -4,10 +4,9 @@ import { useEffect, useState } from 'react'
 import StatCard from './StatCard'
 
 interface DropOffTeacher {
-  id: string
-  name: string | null
+  name: string
   phoneNumber: string
-  schoolName: string | null
+  schoolName: string
   lastActivityAt: string | null
   daysSinceActive: number | null
 }
@@ -62,8 +61,8 @@ export default function RetentionPanel() {
               </tr>
             </thead>
             <tbody>
-              {data.dropOff.map(t => (
-                <tr key={t.id} className="border-b border-gray-800/60 last:border-0">
+              {data.dropOff.map((t, i) => (
+                <tr key={`${t.phoneNumber}-${i}`} className="border-b border-gray-800/60 last:border-0">
                   <td className="px-6 py-3 text-gray-200">{t.name || t.phoneNumber}</td>
                   <td className="px-4 py-3 text-gray-400">{t.schoolName || '—'}</td>
                   <td className="px-4 py-3 text-gray-400">{formatDate(t.lastActivityAt)}</td>

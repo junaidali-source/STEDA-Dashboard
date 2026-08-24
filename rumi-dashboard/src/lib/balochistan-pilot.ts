@@ -1,139 +1,127 @@
 import { pool } from '@/lib/db'
-import { getPilotSchools, findPilotSchool, getEnrolledTeacherTotal } from '@/lib/balochistan-pilot-schools'
-import { PILOT_START, ENROLLMENT_CUTOFF, DROP_OFF_DAYS } from '@/lib/balochistan-pilot-constants'
+import { findPilotSchool } from '@/lib/balochistan-pilot-schools'
+import { getTeacherRoster, getRosterPhones } from '@/lib/balochistan-teacher-roster'
+import { PILOT_START, DROP_OFF_DAYS } from '@/lib/balochistan-pilot-constants'
 
 export { PILOT_START, ENROLLMENT_CUTOFF, ACTIVATION_TARGET_PCT, ACTIVATION_MIN_PCT, LP_WEEKLY_TARGET_PCT, DROP_OFF_DAYS, PILOT_END_ESTIMATE } from '@/lib/balochistan-pilot-constants'
 
-// Shared filter for "considered population" queries aliased as `u`.
-// $1 = ENROLLMENT_CUTOFF
-const BALOCHISTAN_USER_FILTER = `
-  COALESCE(u.is_test_user, false) = false
-  AND LOWER(TRIM(u.region)) = 'balochistan'
-  AND u.created_at >= $1::date
-`
+// The real DEO-confirmed teacher roster (169 named teachers, phone-verified
+// against live Rumi data Aug 2026) is the source of truth for "enrolled" —
+// not self-reported region/date, which only ever matched ~7% of it. $1 = the
+// roster's phone numbers.
+const ROSTER_USER_FILTER = `COALESCE(u.is_test_user, false) = false AND u.phone_number = ANY($1::text[])`
 
 // Same as onboarding-tracker.ts's COACHING_PCT — the AI's existing pedagogical
 // rubric score, used as-is under the MOU's "PITE-aligned" label (no rubric
 // crosswalk exists yet).
 const COACHING_PCT = `COALESCE(cs.analysis_data->'scores'->>'percentage', cs.analysis_data->'scores'->>'overall_percentage')`
 
-export interface ConsideredTeacher {
-  id: string
-  phone_number: string
-  name: string | null
-  school_name: string | null
-  emis_code: string | null
-  registration_completed: boolean
-  created_at: string
-  last_activity_at: string | null
-  coaching_avg_percentage: number | null
-  lesson_plans_count: number
-  coaching_sessions_count: number
-  reading_assessments_count: number
+export interface RosterLiveStatus {
+  id: string | null
+  registrationCompleted: boolean
+  registeredAt: string | null
+  lastActivityAt: string | null
+  lessonPlansCount: number
+  coachingSessionsCount: number
+  coachingAvgPercentage: number | null
+  readingAssessmentsCount: number
 }
 
-export async function getConsideredTeachers(): Promise<ConsideredTeacher[]> {
+// Live status per roster phone number. users.lesson_plans_count /
+// coaching_sessions_count / coaching_avg_percentage are pre-aggregated
+// summary columns that are NOT kept in sync — verified against real pilot
+// teachers (2026-08) showing 0 while the base tables had 4 and 6 completed
+// lesson plans respectively. Every count here is computed directly from the
+// base tables instead; never reintroduce those summary columns for KPIs.
+async function getRosterLiveStatus(): Promise<Map<string, RosterLiveStatus>> {
+  const phones = getRosterPhones()
+  const map = new Map<string, RosterLiveStatus>()
+  if (phones.length === 0) return map
+
   const res = await pool.query(
-    `SELECT u.id, u.phone_number, u.name, u.school_name, u.emis_code, u.registration_completed,
-            u.created_at, u.last_activity_at, u.coaching_avg_percentage,
-            COALESCE(u.lesson_plans_count, 0) AS lesson_plans_count,
-            COALESCE(u.coaching_sessions_count, 0) AS coaching_sessions_count,
-            COALESCE(u.reading_assessments_count, 0) AS reading_assessments_count
+    `SELECT u.phone_number, u.id, u.registration_completed,
+            COALESCE(u.registration_completed_at, u.created_at) AS registered_at,
+            u.last_activity_at,
+            (SELECT COUNT(*)::int FROM lesson_plan_requests lpr
+             WHERE lpr.user_id = u.id AND lpr.status = 'completed') AS lesson_plans_count,
+            (SELECT COUNT(*)::int FROM coaching_sessions cs
+             WHERE cs.user_id = u.id AND cs.status = 'completed') AS coaching_sessions_count,
+            (SELECT ROUND(AVG((${COACHING_PCT})::numeric), 1)
+             FROM coaching_sessions cs
+             WHERE cs.user_id = u.id AND cs.status = 'completed' AND (${COACHING_PCT}) IS NOT NULL) AS coaching_avg_percentage,
+            (SELECT COUNT(*)::int FROM reading_assessments ra
+             WHERE ra.user_id = u.id AND ra.status = 'completed') AS reading_assessments_count
      FROM users u
-     WHERE ${BALOCHISTAN_USER_FILTER}
-     ORDER BY u.created_at ASC`,
-    [ENROLLMENT_CUTOFF]
+     WHERE ${ROSTER_USER_FILTER}`,
+    [phones]
   )
-  return res.rows
+  for (const row of res.rows as {
+    phone_number: string; id: string; registration_completed: boolean; registered_at: string | null
+    last_activity_at: string | null; lesson_plans_count: number; coaching_sessions_count: number
+    coaching_avg_percentage: string | null; reading_assessments_count: number
+  }[]) {
+    map.set(row.phone_number, {
+      id: row.id,
+      registrationCompleted: row.registration_completed,
+      registeredAt: row.registered_at,
+      lastActivityAt: row.last_activity_at,
+      lessonPlansCount: row.lesson_plans_count,
+      coachingSessionsCount: row.coaching_sessions_count,
+      coachingAvgPercentage: row.coaching_avg_percentage !== null ? Number(row.coaching_avg_percentage) : null,
+      readingAssessmentsCount: row.reading_assessments_count,
+    })
+  }
+  return map
 }
 
 export interface OnboardingBaseline {
-  totalConsidered: number
+  totalEnrolled: number
   registrationCompleted: number
   onboardingCompletionPct: number
 }
 
 export async function getOnboardingBaseline(): Promise<OnboardingBaseline> {
-  const res = await pool.query(
-    `SELECT COUNT(*)::int AS total,
-            COUNT(*) FILTER (WHERE u.registration_completed)::int AS completed
-     FROM users u
-     WHERE ${BALOCHISTAN_USER_FILTER}`,
-    [ENROLLMENT_CUTOFF]
-  )
-  const total = res.rows[0]?.total ?? 0
-  const completed = res.rows[0]?.completed ?? 0
+  const roster = getTeacherRoster()
+  const live = await getRosterLiveStatus()
+  const registered = roster.filter(t => t.phone && live.get(t.phone)?.registrationCompleted).length
   return {
-    totalConsidered: total,
-    registrationCompleted: completed,
-    onboardingCompletionPct: total > 0 ? Math.round((completed / total) * 100) : 0,
-  }
-}
-
-export interface TrueActivation {
-  matchedRegistered: number
-  enrolledKnownTotal: number
-  schoolsWithKnownCount: number
-  schoolsWithUnknownCount: number
-  isPartial: boolean
-  activationPct: number | null
-}
-
-// The real "% of enrolled teachers who registered" the MOU asks for — DEO
-// nominated headcount as the denominator, matched-and-registered teachers as
-// the numerator. Only 8 of 20 schools (Zhob) reported a headcount, so this is
-// a floor, not the true rate, until Quetta's counts arrive.
-export async function getTrueActivation(): Promise<TrueActivation> {
-  const considered = await getConsideredTeachers()
-  const enrolled = getEnrolledTeacherTotal()
-  let matchedRegistered = 0
-  for (const t of considered) {
-    if (!t.registration_completed) continue
-    if (findPilotSchool(t.emis_code, t.school_name)) matchedRegistered++
-  }
-  return {
-    matchedRegistered,
-    enrolledKnownTotal: enrolled.knownTotal,
-    schoolsWithKnownCount: enrolled.schoolsWithKnownCount,
-    schoolsWithUnknownCount: enrolled.schoolsWithUnknownCount,
-    isPartial: !enrolled.isComplete,
-    activationPct: enrolled.knownTotal > 0 ? Math.round((matchedRegistered / enrolled.knownTotal) * 100) : null,
+    totalEnrolled: roster.length,
+    registrationCompleted: registered,
+    onboardingCompletionPct: roster.length > 0 ? Math.round((registered / roster.length) * 100) : 0,
   }
 }
 
 export interface ActivationWeek {
   week: string
-  signups: number
-  registered: number
-  cumulativeSignups: number
+  newlyRegistered: number
   cumulativeRegistered: number
   activationPct: number
 }
 
-// Weekly + cumulative activation trend. Denominator is today's "considered"
-// population (self-reported + June cutoff) — swap in the reference list's
-// true enrolled-per-school total once available (see plan §1).
+// Weekly + cumulative activation trend against the fixed roster size (169) —
+// the real "% of enrolled teachers who registered" the MOU asks for. Exact,
+// not a floor, now that every school has a phone-verified teacher list.
 export async function getActivationTrend(): Promise<ActivationWeek[]> {
+  const phones = getRosterPhones()
+  const total = getTeacherRoster().length
+  if (phones.length === 0 || total === 0) return []
+
   const res = await pool.query(
-    `SELECT date_trunc('week', u.created_at)::date AS week,
-            COUNT(*)::int AS signups,
-            COUNT(*) FILTER (WHERE u.registration_completed)::int AS registered
+    `SELECT date_trunc('week', COALESCE(u.registration_completed_at, u.created_at))::date AS week,
+            COUNT(*)::int AS newly_registered
      FROM users u
-     WHERE ${BALOCHISTAN_USER_FILTER}
+     WHERE ${ROSTER_USER_FILTER} AND u.registration_completed
      GROUP BY 1 ORDER BY 1`,
-    [ENROLLMENT_CUTOFF]
+    [phones]
   )
-  let cumSignups = 0, cumRegistered = 0
-  return res.rows.map((r: { week: string; signups: number; registered: number }) => {
-    cumSignups += r.signups
-    cumRegistered += r.registered
+  let cum = 0
+  return res.rows.map((r: { week: string; newly_registered: number }) => {
+    cum += r.newly_registered
     return {
       week: new Date(r.week).toISOString().slice(0, 10),
-      signups: r.signups,
-      registered: r.registered,
-      cumulativeSignups: cumSignups,
-      cumulativeRegistered: cumRegistered,
-      activationPct: cumSignups > 0 ? Math.round((cumRegistered / cumSignups) * 100) : 0,
+      newlyRegistered: r.newly_registered,
+      cumulativeRegistered: cum,
+      activationPct: Math.round((cum / total) * 100),
     }
   })
 }
@@ -150,31 +138,34 @@ export interface EngagementWeek {
 // "Active this week" = any signal at all (conversation or any feature),
 // so the 75%-of-active-teachers LP target has a real denominator.
 export async function getEngagementTrend(): Promise<EngagementWeek[]> {
+  const phones = getRosterPhones()
+  if (phones.length === 0) return []
+
   const activeRes = await pool.query(
     `SELECT week, COUNT(DISTINCT user_id)::int AS active_teachers FROM (
        SELECT date_trunc('week', c.created_at)::date AS week, c.user_id
-       FROM conversations c JOIN users u ON u.id = c.user_id WHERE ${BALOCHISTAN_USER_FILTER}
+       FROM conversations c JOIN users u ON u.id = c.user_id WHERE ${ROSTER_USER_FILTER}
        UNION ALL
        SELECT date_trunc('week', lpr.created_at)::date, lpr.user_id
-       FROM lesson_plan_requests lpr JOIN users u ON u.id = lpr.user_id WHERE ${BALOCHISTAN_USER_FILTER}
+       FROM lesson_plan_requests lpr JOIN users u ON u.id = lpr.user_id WHERE ${ROSTER_USER_FILTER}
        UNION ALL
        SELECT date_trunc('week', cs.created_at)::date, cs.user_id
-       FROM coaching_sessions cs JOIN users u ON u.id = cs.user_id WHERE ${BALOCHISTAN_USER_FILTER}
+       FROM coaching_sessions cs JOIN users u ON u.id = cs.user_id WHERE ${ROSTER_USER_FILTER}
        UNION ALL
        SELECT date_trunc('week', ra.created_at)::date, ra.user_id
-       FROM reading_assessments ra JOIN users u ON u.id = ra.user_id WHERE ${BALOCHISTAN_USER_FILTER}
+       FROM reading_assessments ra JOIN users u ON u.id = ra.user_id WHERE ${ROSTER_USER_FILTER}
      ) sub
      GROUP BY week ORDER BY week`,
-    [ENROLLMENT_CUTOFF]
+    [phones]
   )
 
   const lpRes = await pool.query(
     `SELECT date_trunc('week', lpr.created_at)::date AS week,
             COUNT(DISTINCT lpr.user_id)::int AS teachers_with_lp
      FROM lesson_plan_requests lpr JOIN users u ON u.id = lpr.user_id
-     WHERE ${BALOCHISTAN_USER_FILTER} AND lpr.status = 'completed'
+     WHERE ${ROSTER_USER_FILTER} AND lpr.status = 'completed'
      GROUP BY 1 ORDER BY 1`,
-    [ENROLLMENT_CUTOFF]
+    [phones]
   )
 
   const coachRes = await pool.query(
@@ -182,9 +173,9 @@ export async function getEngagementTrend(): Promise<EngagementWeek[]> {
             COUNT(*)::int AS attempted,
             COUNT(DISTINCT cs.user_id)::int AS teachers
      FROM coaching_sessions cs JOIN users u ON u.id = cs.user_id
-     WHERE ${BALOCHISTAN_USER_FILTER}
+     WHERE ${ROSTER_USER_FILTER}
      GROUP BY 1 ORDER BY 1`,
-    [ENROLLMENT_CUTOFF]
+    [phones]
   )
 
   const byWeek = new Map<string, EngagementWeek>()
@@ -217,14 +208,17 @@ export interface CoachingScoreWeek {
 }
 
 export async function getCoachingScoreTrend(): Promise<CoachingScoreWeek[]> {
+  const phones = getRosterPhones()
+  if (phones.length === 0) return []
+
   const res = await pool.query(
     `SELECT date_trunc('week', cs.created_at)::date AS week,
             ROUND(AVG((${COACHING_PCT})::numeric) FILTER (WHERE ${COACHING_PCT} IS NOT NULL), 1) AS avg_score,
             COUNT(*) FILTER (WHERE ${COACHING_PCT} IS NOT NULL)::int AS scored_sessions
      FROM coaching_sessions cs JOIN users u ON u.id = cs.user_id
-     WHERE ${BALOCHISTAN_USER_FILTER} AND cs.status = 'completed'
+     WHERE ${ROSTER_USER_FILTER} AND cs.status = 'completed'
      GROUP BY 1 ORDER BY 1`,
-    [ENROLLMENT_CUTOFF]
+    [phones]
   )
   return res.rows.map((r: { week: string; avg_score: string | null; scored_sessions: number }) => ({
     week: new Date(r.week).toISOString().slice(0, 10),
@@ -242,6 +236,9 @@ export interface RetentionSummary {
 // Month 1 / Month 2 are pilot-relative 30-day windows from PILOT_START, not
 // calendar months (the MOU's reporting period has its own start date).
 export async function getRetentionSummary(): Promise<RetentionSummary> {
+  const phones = getRosterPhones()
+  if (phones.length === 0) return { activeMonth1: 0, activeBothMonths: 0, retentionPct: 0 }
+
   const res = await pool.query(
     `WITH activity AS (
        SELECT user_id, created_at FROM conversations
@@ -256,9 +253,9 @@ export async function getRetentionSummary(): Promise<RetentionSummary> {
        BOOL_OR(a.created_at >= $2::date + INTERVAL '30 days' AND a.created_at < $2::date + INTERVAL '60 days') AS active_month2
      FROM users u
      LEFT JOIN activity a ON a.user_id = u.id
-     WHERE ${BALOCHISTAN_USER_FILTER}
+     WHERE ${ROSTER_USER_FILTER}
      GROUP BY u.id`,
-    [ENROLLMENT_CUTOFF, PILOT_START]
+    [phones, PILOT_START]
   )
   const rows = res.rows as { active_month1: boolean; active_month2: boolean }[]
   const activeMonth1 = rows.filter(r => r.active_month1).length
@@ -271,32 +268,31 @@ export async function getRetentionSummary(): Promise<RetentionSummary> {
 }
 
 export interface DropOffTeacher {
-  id: string
-  name: string | null
+  name: string
   phoneNumber: string
-  schoolName: string | null
+  schoolName: string
   lastActivityAt: string | null
   daysSinceActive: number | null
 }
 
-// Surfaces WHO dropped off and WHEN — the doc explicitly asks for the
-// quantitative surface only ("to support the qualitative review"), so pattern
-// interpretation is left to the human review, not computed here.
+// Surfaces WHO dropped off and WHEN, across the whole roster (registered or
+// not) — the doc explicitly asks for the quantitative surface only ("to
+// support the qualitative review"), so pattern interpretation is left to the
+// human review, not computed here.
 export async function getDropOffTeachers(): Promise<DropOffTeacher[]> {
-  const res = await pool.query(
-    `SELECT u.id, u.name, u.phone_number, u.school_name, u.last_activity_at,
-            CASE WHEN u.last_activity_at IS NULL THEN NULL
-                 ELSE (CURRENT_DATE - u.last_activity_at::date) END AS days_since_active
-     FROM users u
-     WHERE ${BALOCHISTAN_USER_FILTER}
-       AND (u.last_activity_at IS NULL OR u.last_activity_at::date <= CURRENT_DATE - ${DROP_OFF_DAYS})
-     ORDER BY u.last_activity_at ASC NULLS FIRST`,
-    [ENROLLMENT_CUTOFF]
-  )
-  return res.rows.map((r: { id: string; name: string | null; phone_number: string; school_name: string | null; last_activity_at: string | null; days_since_active: number | null }) => ({
-    id: r.id, name: r.name, phoneNumber: r.phone_number, schoolName: r.school_name,
-    lastActivityAt: r.last_activity_at, daysSinceActive: r.days_since_active,
-  }))
+  const roster = getTeacherRoster()
+  const live = await getRosterLiveStatus()
+  const now = Date.now()
+
+  return roster
+    .map(t => {
+      const status = t.phone ? live.get(t.phone) : undefined
+      const lastActivityAt = status?.lastActivityAt ?? null
+      const daysSinceActive = lastActivityAt ? Math.floor((now - new Date(lastActivityAt).getTime()) / 86400000) : null
+      return { name: t.name, phoneNumber: t.phone ?? '', schoolName: t.schoolName, lastActivityAt, daysSinceActive }
+    })
+    .filter(t => t.daysSinceActive === null || t.daysSinceActive >= DROP_OFF_DAYS)
+    .sort((a, b) => (a.lastActivityAt ?? '').localeCompare(b.lastActivityAt ?? ''))
 }
 
 export interface ReliabilityMonth {
@@ -312,15 +308,18 @@ export interface ReliabilityMonth {
 // pipeline diagnostics but exact step-name values need live verification
 // before building a more granular breakdown.
 export async function getReliabilityTrend(): Promise<ReliabilityMonth[]> {
+  const phones = getRosterPhones()
+  if (phones.length === 0) return []
+
   const res = await pool.query(
     `SELECT date_trunc('month', cs.created_at)::date AS month,
             COUNT(*)::int AS attempted,
             COUNT(*) FILTER (WHERE cs.audio_url IS NOT NULL)::int AS audio_uploaded,
             COUNT(*) FILTER (WHERE cs.status = 'completed')::int AS ai_completed
      FROM coaching_sessions cs JOIN users u ON u.id = cs.user_id
-     WHERE ${BALOCHISTAN_USER_FILTER}
+     WHERE ${ROSTER_USER_FILTER}
      GROUP BY 1 ORDER BY 1`,
-    [ENROLLMENT_CUTOFF]
+    [phones]
   )
   return res.rows.map((r: { month: string; attempted: number; audio_uploaded: number; ai_completed: number }) => ({
     month: new Date(r.month).toISOString().slice(0, 10),
@@ -331,35 +330,50 @@ export async function getReliabilityTrend(): Promise<ReliabilityMonth[]> {
 }
 
 export interface TeacherRow {
-  id: string
-  name: string | null
+  name: string
   phoneNumber: string
-  schoolName: string | null
-  district: string | null
+  schoolName: string
+  district: string
   cohort: string | null
+  gender: string
   onboardingStatus: 'registered' | 'pending'
   lessonPlansCount: number
   coachingSessionsCount: number
   coachingAvgPercentage: number | null
   lastActivityAt: string | null
+  notes: string
+  hasPhoneConflict: boolean
 }
 
+// Every roster teacher, registered or not — same shape as the STEDA
+// onboarding tracker's live-join pattern. `hasPhoneConflict` flags roster
+// rows sharing a phone number with another row (a real, unresolved data
+// issue in the source roster — e.g. Muhammad Hassan / Abdul Mateen) so the
+// UI can surface it rather than silently attribute one account to both.
 export async function getTeacherRows(): Promise<TeacherRow[]> {
-  const considered = await getConsideredTeachers()
-  return considered.map(t => {
-    const school = findPilotSchool(t.emis_code, t.school_name)
+  const roster = getTeacherRoster()
+  const live = await getRosterLiveStatus()
+
+  const phoneCounts = new Map<string, number>()
+  for (const t of roster) if (t.phone) phoneCounts.set(t.phone, (phoneCounts.get(t.phone) ?? 0) + 1)
+
+  return roster.map(t => {
+    const status = t.phone ? live.get(t.phone) : undefined
+    const school = findPilotSchool(t.emisCode, t.schoolName)
     return {
-      id: t.id,
       name: t.name,
-      phoneNumber: t.phone_number,
-      schoolName: school?.schoolName ?? t.school_name,
-      district: school?.district ?? null,
-      cohort: school?.cohort ?? null,
-      onboardingStatus: t.registration_completed ? 'registered' : 'pending',
-      lessonPlansCount: t.lesson_plans_count,
-      coachingSessionsCount: t.coaching_sessions_count,
-      coachingAvgPercentage: t.coaching_avg_percentage,
-      lastActivityAt: t.last_activity_at,
+      phoneNumber: t.phone ?? '',
+      schoolName: t.schoolName,
+      district: t.district,
+      cohort: school?.cohort || null,
+      gender: t.gender,
+      onboardingStatus: status?.registrationCompleted ? 'registered' : 'pending',
+      lessonPlansCount: status?.lessonPlansCount ?? 0,
+      coachingSessionsCount: status?.coachingSessionsCount ?? 0,
+      coachingAvgPercentage: status?.coachingAvgPercentage ?? null,
+      lastActivityAt: status?.lastActivityAt ?? null,
+      notes: t.notes,
+      hasPhoneConflict: !!t.phone && (phoneCounts.get(t.phone) ?? 0) > 1,
     }
   })
 }
@@ -368,6 +382,7 @@ export interface SchoolCohortRollup {
   district: string
   cohort: string
   schoolName: string
+  emisCode: string
   teacherCount: number
   registeredCount: number
   lessonPlansTotal: number
@@ -377,38 +392,35 @@ export interface SchoolCohortRollup {
 export interface SchoolCohortResult {
   available: boolean
   rollups: SchoolCohortRollup[]
-  unmatchedTeachers: number
 }
 
-// Returns `available: false` (not empty rollups) until the schools reference
-// list exists — an empty dashboard section would misleadingly read as
-// "zero activity" rather than "no reference data yet".
+// Grouped directly from the verified roster now — no more EMIS/name fuzzy
+// matching against self-reported user fields. Cohort/head-teacher enrichment
+// still comes from the schools reference file (Balochistan_Pilot_Schools.csv)
+// where available.
 export async function getSchoolCohortRollups(): Promise<SchoolCohortResult> {
-  const schools = getPilotSchools()
-  if (schools.length === 0) {
-    return { available: false, rollups: [], unmatchedTeachers: 0 }
-  }
+  const roster = getTeacherRoster()
+  if (roster.length === 0) return { available: false, rollups: [] }
 
-  const considered = await getConsideredTeachers()
+  const live = await getRosterLiveStatus()
   const groups = new Map<string, SchoolCohortRollup>()
-  let unmatched = 0
 
-  for (const t of considered) {
-    const school = findPilotSchool(t.emis_code, t.school_name)
-    if (!school) { unmatched++; continue }
-    const key = `${school.district}|${school.cohort}|${school.schoolName}`
+  for (const t of roster) {
+    const school = findPilotSchool(t.emisCode, t.schoolName)
+    const key = `${t.district}|${t.emisCode}|${t.schoolName}`
     const row = groups.get(key) ?? {
-      district: school.district, cohort: school.cohort, schoolName: school.schoolName,
+      district: t.district, cohort: school?.cohort || '', schoolName: t.schoolName, emisCode: t.emisCode,
       teacherCount: 0, registeredCount: 0, lessonPlansTotal: 0, coachingSessionsTotal: 0,
     }
+    const status = t.phone ? live.get(t.phone) : undefined
     row.teacherCount++
-    if (t.registration_completed) row.registeredCount++
-    row.lessonPlansTotal += t.lesson_plans_count
-    row.coachingSessionsTotal += t.coaching_sessions_count
+    if (status?.registrationCompleted) row.registeredCount++
+    row.lessonPlansTotal += status?.lessonPlansCount ?? 0
+    row.coachingSessionsTotal += status?.coachingSessionsCount ?? 0
     groups.set(key, row)
   }
 
-  return { available: true, rollups: Array.from(groups.values()), unmatchedTeachers: unmatched }
+  return { available: true, rollups: Array.from(groups.values()) }
 }
 
 export interface NpsSummary {
@@ -431,13 +443,15 @@ export interface NpsSummary {
 // rather than crashing.
 export async function getNpsSummary(): Promise<NpsSummary> {
   const empty: NpsSummary = { available: false, totalResponses: 0, promoters: 0, passives: 0, detractors: 0, npsScore: null }
+  const phones = getRosterPhones()
+  if (phones.length === 0) return empty
   try {
     const res = await pool.query(
       `SELECT r.score::int AS score
        FROM nps_responses r
        JOIN users u ON u.phone_number = r.phone_number
-       WHERE ${BALOCHISTAN_USER_FILTER}`,
-      [ENROLLMENT_CUTOFF]
+       WHERE ${ROSTER_USER_FILTER}`,
+      [phones]
     )
     const scores = res.rows.map((r: { score: number }) => r.score)
     const total = scores.length
