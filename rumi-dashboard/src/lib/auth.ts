@@ -18,6 +18,7 @@ export const USERS: Record<string, { password: string; role: Role; scope?: strin
   'principal-jinnah': { password: 'Jinnah@2026', role: 'principal', scope: 'GGHS M.A. Jinnah Campus Latifabad No.11', semisId: '403030204', region: 'sindh' },
   'deo-hyderabad':    { password: 'Hyderabad@2026', role: 'deo',    scope: 'Hyderabad', region: 'sindh' },
   'balochistan-admin': { password: 'Balochistan@2026', role: 'regional', region: 'balochistan' },
+  'sed-balochistan':   { password: 'SEDPilot@2026',    role: 'regional', region: 'balochistan' },
 }
 
 export async function createSessionToken(username: string, role: string, scope?: string, semisId?: string, region?: string): Promise<string> {
