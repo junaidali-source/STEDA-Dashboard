@@ -42,12 +42,22 @@ export default function FilterBar() {
   const [showCompare,   setShowCompare]   = useState(compare_from !== '' || compare_to !== '')
   const [compFrom,      setCompFrom]      = useState(compare_from)
   const [compTo,        setCompTo]        = useState(compare_to)
+  const [lockedRegion,  setLockedRegion]  = useState<string | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     fetch('/api/partners')
       .then((r) => r.json())
       .then((data) => Array.isArray(data) && setPartners(data))
+      .catch(() => {})
+  }, [])
+
+  // Non-admin accounts are locked to one region (enforced server-side in
+  // middleware) — show it as a fixed badge instead of an editable dropdown.
+  useEffect(() => {
+    fetch('/api/auth/session', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (data?.role !== 'admin' && data?.region) setLockedRegion(data.region) })
       .catch(() => {})
   }, [])
 
@@ -157,7 +167,14 @@ export default function FilterBar() {
         />
 
         {/* Pakistan region (from Rumi users.region) */}
-        {(countryInput === '92' || country === '92') && (
+        {lockedRegion ? (
+          <span
+            title="Your account is locked to this region"
+            className="inline-flex items-center gap-1.5 border border-slate-300 rounded-lg px-3 py-2 text-sm bg-slate-100 text-slate-700 font-medium"
+          >
+            📍 {PK_REGION_OPTIONS.find((r) => r.slug === lockedRegion)?.label ?? lockedRegion}
+          </span>
+        ) : (countryInput === '92' || country === '92') && (
           <select
             aria-label="Pakistan region"
             title="Pakistan region"

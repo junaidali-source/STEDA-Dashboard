@@ -11,6 +11,7 @@ const ALL_TABS = [
   { href: '/coaching',       label: 'Coaching',     roles: ['admin', 'steda'] },
   { href: '/tracker',  label: 'Tracker',       roles: ['admin'] },
   { href: '/onboarding-tracker', label: 'Rumi Dashboard', roles: ['admin', 'principal', 'deo'] },
+  { href: '/balochistan-pilot', label: 'Balochistan Pilot', roles: ['admin', 'regional'] },
 ]
 
 export default function NavTabs({ role }: { role: string }) {

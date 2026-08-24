@@ -2,29 +2,33 @@ const SECRET = new TextEncoder().encode(
   process.env.AUTH_SECRET ?? 'rumi-dashboard-secret-2024'
 )
 
-export type Role = 'admin' | 'steda' | 'principal' | 'deo'
+export type Role = 'admin' | 'steda' | 'principal' | 'deo' | 'regional'
 
 // scope: for 'principal' the school name, for 'deo' the district name (matches
 // the `School` / `District` columns in data/Rumi_Onboarding_*.csv)
 // semisId: for 'principal' only — the school's SEMISID/EMIS code, used to join
 // against the master STEDA teacher list (data/STEDA List of Teachers-1 .csv),
 // since that list's free-text school names don't match reliably by string.
-export const USERS: Record<string, { password: string; role: Role; scope?: string; semisId?: string }> = {
+// region: Pakistan region slug (see PK_REGION_OPTIONS) this account is locked
+// to. Every non-admin account carries one; middleware force-applies it to
+// every request so it can't be overridden via a client-supplied `?region=`.
+export const USERS: Record<string, { password: string; role: Role; scope?: string; semisId?: string; region?: string }> = {
   'admin':          { password: 'Admin@1122',   role: 'admin' },
-  'steda-admin':    { password: 'steda@786',    role: 'steda' },
-  'principal-jinnah': { password: 'Jinnah@2026', role: 'principal', scope: 'GGHS M.A. Jinnah Campus Latifabad No.11', semisId: '403030204' },
-  'deo-hyderabad':    { password: 'Hyderabad@2026', role: 'deo',    scope: 'Hyderabad' },
+  'steda-admin':    { password: 'steda@786',    role: 'steda', region: 'sindh' },
+  'principal-jinnah': { password: 'Jinnah@2026', role: 'principal', scope: 'GGHS M.A. Jinnah Campus Latifabad No.11', semisId: '403030204', region: 'sindh' },
+  'deo-hyderabad':    { password: 'Hyderabad@2026', role: 'deo',    scope: 'Hyderabad', region: 'sindh' },
+  'balochistan-admin': { password: 'Balochistan@2026', role: 'regional', region: 'balochistan' },
 }
 
-export async function createSessionToken(username: string, role: string, scope?: string, semisId?: string): Promise<string> {
-  const payload = btoa(JSON.stringify({ username, role, scope, semisId, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 }))
+export async function createSessionToken(username: string, role: string, scope?: string, semisId?: string, region?: string): Promise<string> {
+  const payload = btoa(JSON.stringify({ username, role, scope, semisId, region, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 }))
   const key = await crypto.subtle.importKey('raw', SECRET, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
   const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload))
   const sigHex = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('')
   return `${payload}.${sigHex}`
 }
 
-export async function verifySessionToken(token: string): Promise<{ username: string; role: string; scope?: string; semisId?: string } | null> {
+export async function verifySessionToken(token: string): Promise<{ username: string; role: string; scope?: string; semisId?: string; region?: string } | null> {
   try {
     const dotIdx = token.lastIndexOf('.')
     if (dotIdx === -1) return null
@@ -36,7 +40,7 @@ export async function verifySessionToken(token: string): Promise<{ username: str
     if (!valid) return null
     const data = JSON.parse(atob(payload))
     if (data.exp < Date.now()) return null
-    return { username: data.username, role: data.role, scope: data.scope, semisId: data.semisId }
+    return { username: data.username, role: data.role, scope: data.scope, semisId: data.semisId, region: data.region }
   } catch {
     return null
   }
@@ -45,5 +49,5 @@ export async function verifySessionToken(token: string): Promise<{ username: str
 export function validateCredentials(username: string, password: string) {
   const user = USERS[username]
   if (!user || user.password !== password) return null
-  return { role: user.role, scope: user.scope, semisId: user.semisId }
+  return { role: user.role, scope: user.scope, semisId: user.semisId, region: user.region }
 }

@@ -1,16 +1,11 @@
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { verifySessionToken } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(req: Request) {
-  const cookie = req.headers.get('cookie')
-  if (!cookie) {
-    return NextResponse.json({ error: 'No session' }, { status: 401 })
-  }
-
-  const match = cookie.match(/session=([^;]+)/)
-  const token = match ? match[1] : null
+export async function GET() {
+  const token = cookies().get('session')?.value
 
   if (!token) {
     return NextResponse.json({ error: 'No session' }, { status: 401 })
