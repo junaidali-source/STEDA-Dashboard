@@ -6,26 +6,14 @@ import StatCard from './StatCard'
 
 interface ActivationWeek {
   week: string
-  signups: number
-  registered: number
-  cumulativeSignups: number
+  newlyRegistered: number
   cumulativeRegistered: number
   activationPct: number
 }
 
-interface TrueActivation {
-  matchedRegistered: number
-  enrolledKnownTotal: number
-  schoolsWithKnownCount: number
-  schoolsWithUnknownCount: number
-  isPartial: boolean
-  activationPct: number | null
-}
-
 interface OverviewData {
-  baseline: { totalConsidered: number; registrationCompleted: number; onboardingCompletionPct: number }
+  baseline: { totalEnrolled: number; registrationCompleted: number; onboardingCompletionPct: number }
   activation: ActivationWeek[]
-  trueActivation: TrueActivation
   targets: { activationTargetPct: number; activationMinPct: number }
 }
 
@@ -48,27 +36,14 @@ export default function AdoptionPanel() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <StatCard label="Considered Teachers" value={data.baseline.totalConsidered} sub="self-reported region, since Jul 2026" />
+        <StatCard label="Enrolled Teachers" value={data.baseline.totalEnrolled} sub="DEO-confirmed roster, 20 schools" />
         <StatCard label="Onboarding Completion" value={`${data.baseline.onboardingCompletionPct}%`} sub="one-time baseline per teacher" />
         <StatCard label="Registered" value={data.baseline.registrationCompleted} />
       </div>
 
       <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
-        <h3 className="text-white font-semibold text-sm mb-1">Activation Rate — vs. DEO-Nominated Headcount</h3>
-        <p className="text-xs text-gray-500 mb-4">
-          {data.trueActivation.enrolledKnownTotal > 0
-            ? `${data.trueActivation.matchedRegistered} registered of ${data.trueActivation.enrolledKnownTotal} nominated`
-            : 'No nominated headcount known yet'}
-          {data.trueActivation.isPartial && ` — headcount known for ${data.trueActivation.schoolsWithKnownCount} of ${data.trueActivation.schoolsWithKnownCount + data.trueActivation.schoolsWithUnknownCount} schools (Zhob only); this is a floor, not the true rate, until Quetta's counts arrive.`}
-        </p>
-        <p className="text-3xl font-bold text-white">
-          {data.trueActivation.activationPct !== null ? `${data.trueActivation.activationPct}%` : '—'}
-        </p>
-      </div>
-
-      <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
         <h3 className="text-white font-semibold text-sm mb-1">Activation Rate (Cumulative)</h3>
-        <p className="text-xs text-gray-500 mb-4">Target {data.targets.activationTargetPct}% · minimum acceptable {data.targets.activationMinPct}%</p>
+        <p className="text-xs text-gray-500 mb-4">Target {data.targets.activationTargetPct}% · minimum acceptable {data.targets.activationMinPct}% · against the {data.baseline.totalEnrolled}-teacher confirmed roster</p>
         {chartData.length === 0 ? (
           <p className="text-gray-500 text-sm py-8 text-center">No weekly data yet.</p>
         ) : (

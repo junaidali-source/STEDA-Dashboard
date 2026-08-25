@@ -3,17 +3,19 @@
 import { useEffect, useState } from 'react'
 
 interface TeacherRow {
-  id: string
-  name: string | null
+  name: string
   phoneNumber: string
-  schoolName: string | null
-  district: string | null
+  schoolName: string
+  district: string
   cohort: string | null
+  gender: string
   onboardingStatus: 'registered' | 'pending'
   lessonPlansCount: number
   coachingSessionsCount: number
   coachingAvgPercentage: number | null
   lastActivityAt: string | null
+  notes: string
+  hasPhoneConflict: boolean
 }
 
 function formatDate(iso: string | null): string {
@@ -41,6 +43,7 @@ export default function TeacherTable() {
     <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-800">
         <h3 className="text-white font-semibold text-sm">Teacher-Level View</h3>
+        <p className="text-xs text-gray-500 mt-1">{teachers.length} teachers on the DEO-confirmed roster</p>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -49,7 +52,7 @@ export default function TeacherTable() {
               <th className="px-6 py-3 font-medium">Name</th>
               <th className="px-4 py-3 font-medium">School</th>
               <th className="px-4 py-3 font-medium">District</th>
-              <th className="px-4 py-3 font-medium">Cohort</th>
+              <th className="px-4 py-3 font-medium">Gender</th>
               <th className="px-4 py-3 font-medium">Onboarding</th>
               <th className="px-4 py-3 font-medium">Lesson Plans</th>
               <th className="px-4 py-3 font-medium">Coaching Sessions</th>
@@ -58,12 +61,20 @@ export default function TeacherTable() {
             </tr>
           </thead>
           <tbody>
-            {teachers.map(t => (
-              <tr key={t.id} className="border-b border-gray-800/60 last:border-0">
-                <td className="px-6 py-3 text-gray-200">{t.name || t.phoneNumber}</td>
-                <td className="px-4 py-3 text-gray-400">{t.schoolName || '—'}</td>
-                <td className="px-4 py-3 text-gray-400">{t.district || '—'}</td>
-                <td className="px-4 py-3 text-gray-400">{t.cohort || '—'}</td>
+            {teachers.map((t, i) => (
+              <tr key={`${t.phoneNumber}-${i}`} className="border-b border-gray-800/60 last:border-0">
+                <td className="px-6 py-3 text-gray-200">
+                  {t.name}
+                  {t.hasPhoneConflict && (
+                    <span title="Shares a phone number with another roster row — unresolved data conflict" className="ml-2 text-xs px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400">⚠ conflict</span>
+                  )}
+                  {!t.phoneNumber && (
+                    <span title="No confirmed phone number on file" className="ml-2 text-xs px-1.5 py-0.5 rounded bg-gray-700 text-gray-300">no number</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-gray-400">{t.schoolName}</td>
+                <td className="px-4 py-3 text-gray-400">{t.district}</td>
+                <td className="px-4 py-3 text-gray-400">{t.gender}</td>
                 <td className="px-4 py-3">
                   <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${t.onboardingStatus === 'registered' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'}`}>
                     {t.onboardingStatus === 'registered' ? 'Registered' : 'Pending'}

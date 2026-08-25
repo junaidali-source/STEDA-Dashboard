@@ -6,12 +6,13 @@ interface SchoolCohortRollup {
   district: string
   cohort: string
   schoolName: string
+  emisCode: string
   teacherCount: number
   registeredCount: number
   lessonPlansTotal: number
   coachingSessionsTotal: number
 }
-interface SchoolCohortResult { available: boolean; rollups: SchoolCohortRollup[]; unmatchedTeachers: number }
+interface SchoolCohortResult { available: boolean; rollups: SchoolCohortRollup[] }
 
 export default function SchoolCohortTable() {
   const [data, setData] = useState<SchoolCohortResult | null>(null)
@@ -30,17 +31,19 @@ export default function SchoolCohortTable() {
   if (!data.available) {
     return (
       <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-5 py-4 text-sm text-amber-400">
-        School/cohort reference list not yet available — waiting on the 20-school roster (name, EMIS code, district, cohort) from SED. Province-wide numbers are still accurate on the other tabs.
+        Teacher roster not yet available — waiting on the DEO-confirmed 20-school teacher list.
       </div>
     )
   }
+
+  const cohortsPending = data.rollups.every(r => !r.cohort)
 
   return (
     <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-800">
         <h3 className="text-white font-semibold text-sm">Schools &amp; Cohorts — District Quetta &amp; Zhob</h3>
-        {data.unmatchedTeachers > 0 && (
-          <p className="text-xs text-amber-400 mt-1">{data.unmatchedTeachers} considered teacher(s) could not be matched to a pilot school (EMIS code / school name mismatch).</p>
+        {cohortsPending && (
+          <p className="text-xs text-amber-400 mt-1">WhatsApp cohort assignments not yet provided by SED — school/district rollups below are exact.</p>
         )}
       </div>
       <div className="overflow-x-auto">
