@@ -90,20 +90,36 @@ async function getRosterLiveStatus(phones: string[]): Promise<Map<string, Roster
   return map
 }
 
+// Registered = registration_completed. Activated = registered AND has
+// actually used at least one core feature (lesson plan, coaching, or
+// reading assessment) — the MOU's "register AND start using" definition,
+// distinct from mere registration (surfaced explicitly after SED's 25 Aug
+// 2026 roster pull reported these as two different numbers: 58% registered
+// vs 33% activated).
+function isActivated(status: RosterLiveStatus | undefined): boolean {
+  if (!status?.registrationCompleted) return false
+  return status.lessonPlansCount > 0 || status.coachingSessionsCount > 0 || status.readingAssessmentsCount > 0
+}
+
 export interface OnboardingBaseline {
   totalEnrolled: number
   registrationCompleted: number
   onboardingCompletionPct: number
+  activated: number
+  activationPct: number
 }
 
 export async function getOnboardingBaseline(filters?: RosterFilters): Promise<OnboardingBaseline> {
   const roster = scopedRoster(filters)
   const live = await getRosterLiveStatus(getPhonesFor(roster))
   const registered = roster.filter(t => t.phone && live.get(t.phone)?.registrationCompleted).length
+  const activated = roster.filter(t => isActivated(t.phone ? live.get(t.phone) : undefined)).length
   return {
     totalEnrolled: roster.length,
     registrationCompleted: registered,
     onboardingCompletionPct: roster.length > 0 ? Math.round((registered / roster.length) * 100) : 0,
+    activated,
+    activationPct: roster.length > 0 ? Math.round((activated / roster.length) * 100) : 0,
   }
 }
 
@@ -111,36 +127,71 @@ export interface ActivationWeek {
   week: string
   newlyRegistered: number
   cumulativeRegistered: number
+  registrationPct: number
+  newlyActivated: number
+  cumulativeActivated: number
   activationPct: number
 }
 
-// Weekly + cumulative activation trend against the fixed roster size — the
-// real "% of enrolled teachers who registered" the MOU asks for. Exact, not
-// a floor, now that every school has a phone-verified teacher list.
+// Two independent cumulative trends against the fixed roster size:
+// registrationPct = "% of enrolled who registered" (registration_completed),
+// activationPct = "% of enrolled who registered AND actually used a core
+// feature" — the MOU's real activation definition. Kept as two lines on one
+// trend so the gap between them (registered-but-inactive teachers) is
+// visible, matching the split SED's 25 Aug 2026 roster pull reported.
 export async function getActivationTrend(filters?: RosterFilters): Promise<ActivationWeek[]> {
   const roster = scopedRoster(filters)
   const phones = getPhonesFor(roster)
   const total = roster.length
   if (phones.length === 0 || total === 0) return []
 
-  const res = await pool.query(
-    `SELECT date_trunc('week', COALESCE(u.registration_completed_at, u.created_at))::date AS week,
-            COUNT(*)::int AS newly_registered
-     FROM users u
-     WHERE ${ROSTER_USER_FILTER} AND u.registration_completed
-     GROUP BY 1 ORDER BY 1`,
-    [phones]
-  )
-  let cum = 0
-  return res.rows.map((r: { week: string; newly_registered: number }) => {
-    cum += r.newly_registered
-    return {
-      week: new Date(r.week).toISOString().slice(0, 10),
-      newlyRegistered: r.newly_registered,
-      cumulativeRegistered: cum,
-      activationPct: Math.round((cum / total) * 100),
-    }
-  })
+  const [registeredRes, activatedRes] = await Promise.all([
+    pool.query(
+      `SELECT date_trunc('week', COALESCE(u.registration_completed_at, u.created_at))::date AS week,
+              COUNT(*)::int AS newly_registered
+       FROM users u
+       WHERE ${ROSTER_USER_FILTER} AND u.registration_completed
+       GROUP BY 1 ORDER BY 1`,
+      [phones]
+    ),
+    pool.query(
+      `WITH first_activity AS (
+         SELECT user_id, MIN(created_at) AS first_at FROM (
+           SELECT user_id, created_at FROM lesson_plan_requests
+           UNION ALL SELECT user_id, created_at FROM coaching_sessions
+           UNION ALL SELECT user_id, created_at FROM reading_assessments
+         ) x GROUP BY user_id
+       )
+       SELECT date_trunc('week', fa.first_at)::date AS week, COUNT(*)::int AS newly_activated
+       FROM users u
+       JOIN first_activity fa ON fa.user_id = u.id
+       WHERE ${ROSTER_USER_FILTER} AND u.registration_completed
+       GROUP BY 1 ORDER BY 1`,
+      [phones]
+    ),
+  ])
+
+  const weekKey = (d: string) => new Date(d).toISOString().slice(0, 10)
+  const byWeek = new Map<string, ActivationWeek>()
+  for (const r of registeredRes.rows as { week: string; newly_registered: number }[]) {
+    const k = weekKey(r.week)
+    byWeek.set(k, { week: k, newlyRegistered: r.newly_registered, cumulativeRegistered: 0, registrationPct: 0, newlyActivated: 0, cumulativeActivated: 0, activationPct: 0 })
+  }
+  for (const r of activatedRes.rows as { week: string; newly_activated: number }[]) {
+    const k = weekKey(r.week)
+    const row = byWeek.get(k) ?? { week: k, newlyRegistered: 0, cumulativeRegistered: 0, registrationPct: 0, newlyActivated: 0, cumulativeActivated: 0, activationPct: 0 }
+    row.newlyActivated = r.newly_activated
+    byWeek.set(k, row)
+  }
+
+  let cumReg = 0, cumAct = 0
+  return Array.from(byWeek.values())
+    .sort((a, b) => a.week.localeCompare(b.week))
+    .map(row => {
+      cumReg += row.newlyRegistered
+      cumAct += row.newlyActivated
+      return { ...row, cumulativeRegistered: cumReg, registrationPct: Math.round((cumReg / total) * 100), cumulativeActivated: cumAct, activationPct: Math.round((cumAct / total) * 100) }
+    })
 }
 
 export interface EngagementWeek {
