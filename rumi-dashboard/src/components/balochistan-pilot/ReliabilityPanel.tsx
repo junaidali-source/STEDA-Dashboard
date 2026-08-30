@@ -1,21 +1,25 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { filterQueryString } from '@/lib/balochistan-pilot-filter-query'
 
 interface ReliabilityMonth { month: string; attempted: number; audioUploadSuccessPct: number; aiResponseSuccessPct: number }
 interface ReliabilityData { reliability: ReliabilityMonth[] }
 
 export default function ReliabilityPanel() {
+  const sp = useSearchParams()
   const [data, setData] = useState<ReliabilityData | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/balochistan-pilot/reliability')
+    setData(null)
+    fetch(`/api/balochistan-pilot/reliability${filterQueryString(sp)}`)
       .then(async r => { if (!r.ok) throw new Error((await r.json()).error || `${r.status}`); return r.json() })
       .then(setData)
       .catch(e => setError(e.message))
-  }, [])
+  }, [sp])
 
   if (error) return <div className="bg-red-950 border border-red-900 rounded-xl p-5 text-red-400 text-sm">Error loading reliability data: {error}</div>
   if (!data) return <div className="text-gray-500 text-sm">Loading…</div>

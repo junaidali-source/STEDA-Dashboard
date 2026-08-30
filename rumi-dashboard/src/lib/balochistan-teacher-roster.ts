@@ -69,5 +69,51 @@ export function getTeacherRoster(): RosterTeacher[] {
 }
 
 export function getRosterPhones(): string[] {
-  return Array.from(new Set(getTeacherRoster().map(r => r.phone).filter((p): p is string => !!p)))
+  return getPhonesFor(getTeacherRoster())
+}
+
+export function getPhonesFor(roster: RosterTeacher[]): string[] {
+  return Array.from(new Set(roster.map(r => r.phone).filter((p): p is string => !!p)))
+}
+
+export interface RosterFilters {
+  district?: string
+  school?: string
+  gender?: string
+  q?: string
+}
+
+// Applied everywhere a tab scopes its data to a subset of the roster —
+// district/school/gender are exact matches (both come from dropdowns
+// populated by getRosterFilterOptions), `q` is a free-text search against
+// teacher name or school name.
+export function filterRoster(roster: RosterTeacher[], filters: RosterFilters): RosterTeacher[] {
+  const q = filters.q?.trim().toLowerCase()
+  return roster.filter(t => {
+    if (filters.district && t.district !== filters.district) return false
+    if (filters.school && t.schoolName !== filters.school) return false
+    if (filters.gender && t.gender !== filters.gender) return false
+    if (q && !t.name.toLowerCase().includes(q) && !t.schoolName.toLowerCase().includes(q)) return false
+    return true
+  })
+}
+
+export interface RosterFilterOptions {
+  districts: string[]
+  schools: { name: string; district: string }[]
+  genders: string[]
+}
+
+// Dropdown option lists for the filter bar — derived from the roster itself
+// so they never drift out of sync with what's actually in it.
+export function getRosterFilterOptions(): RosterFilterOptions {
+  const roster = getTeacherRoster()
+  const districts = Array.from(new Set(roster.map(t => t.district))).sort()
+  const genders = Array.from(new Set(roster.map(t => t.gender))).sort()
+  const schoolMap = new Map<string, string>()
+  for (const t of roster) schoolMap.set(t.schoolName, t.district)
+  const schools = Array.from(schoolMap.entries())
+    .map(([name, district]) => ({ name, district }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+  return { districts, schools, genders }
 }

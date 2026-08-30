@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import StatCard from './StatCard'
+import { filterQueryString } from '@/lib/balochistan-pilot-filter-query'
 
 interface NpsData {
   nps: { available: boolean; totalResponses: number; promoters: number; passives: number; detractors: number; npsScore: number | null }
@@ -9,15 +11,17 @@ interface NpsData {
 }
 
 export default function NpsPanel() {
+  const sp = useSearchParams()
   const [data, setData] = useState<NpsData | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/balochistan-pilot/nps')
+    setData(null)
+    fetch(`/api/balochistan-pilot/nps${filterQueryString(sp)}`)
       .then(async r => { if (!r.ok) throw new Error((await r.json()).error || `${r.status}`); return r.json() })
       .then(setData)
       .catch(e => setError(e.message))
-  }, [])
+  }, [sp])
 
   if (error) return <div className="bg-red-950 border border-red-900 rounded-xl p-5 text-red-400 text-sm">Error loading NPS data: {error}</div>
   if (!data) return <div className="text-gray-500 text-sm">Loading…</div>

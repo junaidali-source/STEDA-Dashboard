@@ -1,13 +1,14 @@
-import { NextResponse } from 'next/server'
-import { getOnboardingBaseline, getActivationTrend, ACTIVATION_TARGET_PCT, ACTIVATION_MIN_PCT } from '@/lib/balochistan-pilot'
+import { NextRequest, NextResponse } from 'next/server'
+import { getOnboardingBaseline, getActivationTrend, filtersFromSearchParams, ACTIVATION_TARGET_PCT, ACTIVATION_MIN_PCT } from '@/lib/balochistan-pilot'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const filters = filtersFromSearchParams(req.nextUrl.searchParams)
     const [baseline, activation] = await Promise.all([
-      getOnboardingBaseline(),
-      getActivationTrend(),
+      getOnboardingBaseline(filters),
+      getActivationTrend(filters),
     ])
     return NextResponse.json({
       baseline,

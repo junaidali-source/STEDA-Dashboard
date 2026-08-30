@@ -1,20 +1,37 @@
 import { pool } from '@/lib/db'
 import { findPilotSchool } from '@/lib/balochistan-pilot-schools'
-import { getTeacherRoster, getRosterPhones } from '@/lib/balochistan-teacher-roster'
+import { getTeacherRoster, getPhonesFor, filterRoster, type RosterFilters, type RosterTeacher } from '@/lib/balochistan-teacher-roster'
 import { PILOT_START, DROP_OFF_DAYS } from '@/lib/balochistan-pilot-constants'
 
 export { PILOT_START, ENROLLMENT_CUTOFF, ACTIVATION_TARGET_PCT, ACTIVATION_MIN_PCT, LP_WEEKLY_TARGET_PCT, DROP_OFF_DAYS, PILOT_END_ESTIMATE } from '@/lib/balochistan-pilot-constants'
+export type { RosterFilters } from '@/lib/balochistan-teacher-roster'
 
 // The real DEO-confirmed teacher roster (169 named teachers, phone-verified
 // against live Rumi data Aug 2026) is the source of truth for "enrolled" —
 // not self-reported region/date, which only ever matched ~7% of it. $1 = the
-// roster's phone numbers.
+// (possibly filtered) roster's phone numbers.
 const ROSTER_USER_FILTER = `COALESCE(u.is_test_user, false) = false AND u.phone_number = ANY($1::text[])`
 
 // Same as onboarding-tracker.ts's COACHING_PCT — the AI's existing pedagogical
 // rubric score, used as-is under the MOU's "PITE-aligned" label (no rubric
 // crosswalk exists yet).
 const COACHING_PCT = `COALESCE(cs.analysis_data->'scores'->>'percentage', cs.analysis_data->'scores'->>'overall_percentage')`
+
+function scopedRoster(filters?: RosterFilters): RosterTeacher[] {
+  const roster = getTeacherRoster()
+  return filters ? filterRoster(roster, filters) : roster
+}
+
+// Shared by every API route so `?district=&school=&gender=&q=` is parsed
+// identically everywhere.
+export function filtersFromSearchParams(sp: URLSearchParams): RosterFilters {
+  return {
+    district: sp.get('district') || undefined,
+    school: sp.get('school') || undefined,
+    gender: sp.get('gender') || undefined,
+    q: sp.get('q') || undefined,
+  }
+}
 
 export interface RosterLiveStatus {
   id: string | null
@@ -27,14 +44,13 @@ export interface RosterLiveStatus {
   readingAssessmentsCount: number
 }
 
-// Live status per roster phone number. users.lesson_plans_count /
+// Live status per given phone number. users.lesson_plans_count /
 // coaching_sessions_count / coaching_avg_percentage are pre-aggregated
 // summary columns that are NOT kept in sync — verified against real pilot
 // teachers (2026-08) showing 0 while the base tables had 4 and 6 completed
 // lesson plans respectively. Every count here is computed directly from the
 // base tables instead; never reintroduce those summary columns for KPIs.
-async function getRosterLiveStatus(): Promise<Map<string, RosterLiveStatus>> {
-  const phones = getRosterPhones()
+async function getRosterLiveStatus(phones: string[]): Promise<Map<string, RosterLiveStatus>> {
   const map = new Map<string, RosterLiveStatus>()
   if (phones.length === 0) return map
 
@@ -80,9 +96,9 @@ export interface OnboardingBaseline {
   onboardingCompletionPct: number
 }
 
-export async function getOnboardingBaseline(): Promise<OnboardingBaseline> {
-  const roster = getTeacherRoster()
-  const live = await getRosterLiveStatus()
+export async function getOnboardingBaseline(filters?: RosterFilters): Promise<OnboardingBaseline> {
+  const roster = scopedRoster(filters)
+  const live = await getRosterLiveStatus(getPhonesFor(roster))
   const registered = roster.filter(t => t.phone && live.get(t.phone)?.registrationCompleted).length
   return {
     totalEnrolled: roster.length,
@@ -98,12 +114,13 @@ export interface ActivationWeek {
   activationPct: number
 }
 
-// Weekly + cumulative activation trend against the fixed roster size (169) —
-// the real "% of enrolled teachers who registered" the MOU asks for. Exact,
-// not a floor, now that every school has a phone-verified teacher list.
-export async function getActivationTrend(): Promise<ActivationWeek[]> {
-  const phones = getRosterPhones()
-  const total = getTeacherRoster().length
+// Weekly + cumulative activation trend against the fixed roster size — the
+// real "% of enrolled teachers who registered" the MOU asks for. Exact, not
+// a floor, now that every school has a phone-verified teacher list.
+export async function getActivationTrend(filters?: RosterFilters): Promise<ActivationWeek[]> {
+  const roster = scopedRoster(filters)
+  const phones = getPhonesFor(roster)
+  const total = roster.length
   if (phones.length === 0 || total === 0) return []
 
   const res = await pool.query(
@@ -137,8 +154,8 @@ export interface EngagementWeek {
 
 // "Active this week" = any signal at all (conversation or any feature),
 // so the 75%-of-active-teachers LP target has a real denominator.
-export async function getEngagementTrend(): Promise<EngagementWeek[]> {
-  const phones = getRosterPhones()
+export async function getEngagementTrend(filters?: RosterFilters): Promise<EngagementWeek[]> {
+  const phones = getPhonesFor(scopedRoster(filters))
   if (phones.length === 0) return []
 
   const activeRes = await pool.query(
@@ -207,8 +224,8 @@ export interface CoachingScoreWeek {
   scoredSessions: number
 }
 
-export async function getCoachingScoreTrend(): Promise<CoachingScoreWeek[]> {
-  const phones = getRosterPhones()
+export async function getCoachingScoreTrend(filters?: RosterFilters): Promise<CoachingScoreWeek[]> {
+  const phones = getPhonesFor(scopedRoster(filters))
   if (phones.length === 0) return []
 
   const res = await pool.query(
@@ -235,8 +252,8 @@ export interface RetentionSummary {
 
 // Month 1 / Month 2 are pilot-relative 30-day windows from PILOT_START, not
 // calendar months (the MOU's reporting period has its own start date).
-export async function getRetentionSummary(): Promise<RetentionSummary> {
-  const phones = getRosterPhones()
+export async function getRetentionSummary(filters?: RosterFilters): Promise<RetentionSummary> {
+  const phones = getPhonesFor(scopedRoster(filters))
   if (phones.length === 0) return { activeMonth1: 0, activeBothMonths: 0, retentionPct: 0 }
 
   const res = await pool.query(
@@ -275,13 +292,13 @@ export interface DropOffTeacher {
   daysSinceActive: number | null
 }
 
-// Surfaces WHO dropped off and WHEN, across the whole roster (registered or
-// not) — the doc explicitly asks for the quantitative surface only ("to
-// support the qualitative review"), so pattern interpretation is left to the
-// human review, not computed here.
-export async function getDropOffTeachers(): Promise<DropOffTeacher[]> {
-  const roster = getTeacherRoster()
-  const live = await getRosterLiveStatus()
+// Surfaces WHO dropped off and WHEN, across the (possibly filtered) roster
+// (registered or not) — the doc explicitly asks for the quantitative surface
+// only ("to support the qualitative review"), so pattern interpretation is
+// left to the human review, not computed here.
+export async function getDropOffTeachers(filters?: RosterFilters): Promise<DropOffTeacher[]> {
+  const roster = scopedRoster(filters)
+  const live = await getRosterLiveStatus(getPhonesFor(roster))
   const now = Date.now()
 
   return roster
@@ -307,8 +324,8 @@ export interface ReliabilityMonth {
 // a completed analysis. `failed_step`/`error_message` exist for deeper
 // pipeline diagnostics but exact step-name values need live verification
 // before building a more granular breakdown.
-export async function getReliabilityTrend(): Promise<ReliabilityMonth[]> {
-  const phones = getRosterPhones()
+export async function getReliabilityTrend(filters?: RosterFilters): Promise<ReliabilityMonth[]> {
+  const phones = getPhonesFor(scopedRoster(filters))
   if (phones.length === 0) return []
 
   const res = await pool.query(
@@ -345,17 +362,19 @@ export interface TeacherRow {
   hasPhoneConflict: boolean
 }
 
-// Every roster teacher, registered or not — same shape as the STEDA
+// Every matching roster teacher, registered or not — same shape as the STEDA
 // onboarding tracker's live-join pattern. `hasPhoneConflict` flags roster
-// rows sharing a phone number with another row (a real, unresolved data
-// issue in the source roster — e.g. Muhammad Hassan / Abdul Mateen) so the
-// UI can surface it rather than silently attribute one account to both.
-export async function getTeacherRows(): Promise<TeacherRow[]> {
-  const roster = getTeacherRoster()
-  const live = await getRosterLiveStatus()
-
+// rows sharing a phone number with another row ANYWHERE in the full roster
+// (a real, unresolved data issue in the source file — e.g. Muhammad Hassan /
+// Abdul Mateen), computed against the full roster so filtering never hides a
+// conflict that involves a teacher currently filtered out.
+export async function getTeacherRows(filters?: RosterFilters): Promise<TeacherRow[]> {
+  const fullRoster = getTeacherRoster()
   const phoneCounts = new Map<string, number>()
-  for (const t of roster) if (t.phone) phoneCounts.set(t.phone, (phoneCounts.get(t.phone) ?? 0) + 1)
+  for (const t of fullRoster) if (t.phone) phoneCounts.set(t.phone, (phoneCounts.get(t.phone) ?? 0) + 1)
+
+  const roster = filters ? filterRoster(fullRoster, filters) : fullRoster
+  const live = await getRosterLiveStatus(getPhonesFor(roster))
 
   return roster.map(t => {
     const status = t.phone ? live.get(t.phone) : undefined
@@ -398,11 +417,11 @@ export interface SchoolCohortResult {
 // matching against self-reported user fields. Cohort/head-teacher enrichment
 // still comes from the schools reference file (Balochistan_Pilot_Schools.csv)
 // where available.
-export async function getSchoolCohortRollups(): Promise<SchoolCohortResult> {
-  const roster = getTeacherRoster()
-  if (roster.length === 0) return { available: false, rollups: [] }
+export async function getSchoolCohortRollups(filters?: RosterFilters): Promise<SchoolCohortResult> {
+  const roster = scopedRoster(filters)
+  if (getTeacherRoster().length === 0) return { available: false, rollups: [] }
 
-  const live = await getRosterLiveStatus()
+  const live = await getRosterLiveStatus(getPhonesFor(roster))
   const groups = new Map<string, SchoolCohortRollup>()
 
   for (const t of roster) {
@@ -441,9 +460,9 @@ export interface NpsSummary {
 // and ready to read real rows the moment both exist; until then it detects
 // the missing-table error (Postgres 42P01) and reports `available: false`
 // rather than crashing.
-export async function getNpsSummary(): Promise<NpsSummary> {
+export async function getNpsSummary(filters?: RosterFilters): Promise<NpsSummary> {
   const empty: NpsSummary = { available: false, totalResponses: 0, promoters: 0, passives: 0, detractors: 0, npsScore: null }
-  const phones = getRosterPhones()
+  const phones = getPhonesFor(scopedRoster(filters))
   if (phones.length === 0) return empty
   try {
     const res = await pool.query(
