@@ -52,17 +52,23 @@ export default function PilotFilterBar() {
     <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 flex flex-wrap items-center gap-3">
       <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 shrink-0">Filters</span>
 
-      <input
-        type="text"
-        placeholder="🔎 Search teacher or school…"
-        value={qInput}
-        onChange={(e) => {
-          setQInput(e.target.value)
-          if (debounceRef.current) clearTimeout(debounceRef.current)
-          debounceRef.current = setTimeout(() => push({ q: e.target.value }), 350)
-        }}
-        className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 w-56 focus:outline-none focus:ring-2 focus:ring-coral/40"
-      />
+      <div className="relative">
+        <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="11" cy="11" r="7" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <input
+          type="text"
+          placeholder="Search teacher or school…"
+          value={qInput}
+          onChange={(e) => {
+            setQInput(e.target.value)
+            if (debounceRef.current) clearTimeout(debounceRef.current)
+            debounceRef.current = setTimeout(() => push({ q: e.target.value }), 350)
+          }}
+          className="bg-gray-800 border border-gray-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-gray-500 w-60 focus:outline-none focus:ring-2 focus:ring-coral/40"
+        />
+      </div>
 
       <select
         aria-label="District"
@@ -76,9 +82,10 @@ export default function PilotFilterBar() {
 
       <select
         aria-label="School"
+        title={school || 'All Schools'}
         value={school}
         onChange={(e) => push({ school: e.target.value })}
-        className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-coral/40 max-w-[220px]"
+        className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-coral/40 w-[240px] truncate"
       >
         <option value="">All Schools</option>
         {schoolsForDistrict.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
