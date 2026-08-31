@@ -1,21 +1,21 @@
 SchoolName,EMISCode,District,Cohort,Gender,EnrolledTeachers,HeadTeacherName,HeadTeacherContact
-GBHS Wadh Sheikhan,4605,Zhob,,Boys,31,Abdul Rehman,923108913377
-GBHS Zhob No.1,4696,Zhob,,Boys,26,Haider Jamal,923337784471
-GBHS Zhob Malitia,4604,Zhob,,Boys,46,Lal Jan,923359599980
-GBHS New Town,4607,Zhob,,Boys,43,Muhammad Usman,923108870028
-GGHSS Nasarabad,9489,Zhob,,Girls,40,Naik Bibi,923168108439
-GGHSS Zhob Masia Line,9250,Zhob,,Girls,19,Asia Bibi,923105141291
-GGHSS New Ganj Muhall,10552,Zhob,,Girls,18,Marjana,923138160625
-GGHSS Kharotabad,08904,Zhob,,Girls,22,Nusrat Qaisrani,923326699312
-Government Boys High School Kotwal,3421,Quetta,,Boys,,Muhammad Aslam,923468303196
-Government Boys High School Haji Ghaibi Road,5123,Quetta,,Boys,,Naib Jan Agha,923004651063
-Government Boys Middle School Police Line,5096,Quetta,,Boys,,Sana Ullah,923132223337
-Government Boys Primary School Kasi Primary,5128,Quetta,,Boys,,,
-Government Boys Middle School Nichari,4993,Quetta,,Boys,,Dolat Khan,923218023660
-Government Boys Middle School Killi Umer,5063,Quetta,,Boys,,Zia Khan Kasi,923468336602
-Government Girls High School PAF,3355,Quetta,,Girls,,Humera,923048110774
-Government Girls High School Railway,3406,Quetta,,Girls,,Dr. Samina Saleem,923351202069
-Government Girls High School Postal Colony,3345,Quetta,,Girls,,Irum Shamim,923458153578
-Government Girls High School Mission Road,3430,Quetta,,Girls,,Salma Akhter,923337885441
-Government Girls High School Ahmed Quarry,14468,Quetta,,Girls,,Fehmida Gul,923337835651
-Government Girls High School Jan Muhammad Road,3480,Quetta,,Girls,,Naheed Mamnoon,923438244717
+GBHS Wadh Sheikhan,4605,Zhob,Zhob Male,Boys,31,Abdul Rehman,923108913377
+GBHS Zhob No.1,4696,Zhob,Zhob Male,Boys,26,Haider Jamal,923337784471
+GBHS Zhob Malitia,4604,Zhob,Zhob Male,Boys,46,Lal Jan,923359599980
+GBHS New Town,4607,Zhob,Zhob Male,Boys,43,Muhammad Usman,923108870028
+GGHSS Nasarabad,9489,Zhob,Zhob Female,Girls,40,Naik Bibi,923168108439
+GGHSS Zhob Masia Line,9250,Zhob,Zhob Female,Girls,19,Asia Bibi,923105141291
+GGHSS New Ganj Muhall,10552,Zhob,Zhob Female,Girls,18,Marjana,923138160625
+GGHSS Kharotabad,08904,Zhob,Zhob Female,Girls,22,Nusrat Qaisrani,923326699312
+Government Boys High School Kotwal,3421,Quetta,Quetta Male,Boys,,Muhammad Aslam,923468303196
+Government Boys High School Haji Ghaibi Road,5123,Quetta,Quetta Male,Boys,,Naib Jan Agha,923004651063
+Government Boys Middle School Police Line,5096,Quetta,Quetta Male,Boys,,Sana Ullah,923132223337
+Government Boys Primary School Kasi Primary,5128,Quetta,Quetta Male,Boys,,,
+Government Boys Middle School Nichari,4993,Quetta,Quetta Male,Boys,,Dolat Khan,923218023660
+Government Boys Middle School Killi Umer,5063,Quetta,Quetta Male,Boys,,Zia Khan Kasi,923468336602
+Government Girls High School PAF,3355,Quetta,Quetta Female,Girls,,Humera,923048110774
+Government Girls High School Railway,3406,Quetta,Quetta Female,Girls,,Dr. Samina Saleem,923351202069
+Government Girls High School Postal Colony,3345,Quetta,Quetta Female,Girls,,Irum Shamim,923458153578
+Government Girls High School Mission Road,3430,Quetta,Quetta Female,Girls,,Salma Akhter,923337885441
+Government Girls High School Ahmed Quarry,14468,Quetta,Quetta Female,Girls,,Fehmida Gul,923337835651
+Government Girls High School Jan Muhammad Road,3480,Quetta,Quetta Female,Girls,,Naheed Mamnoon,923438244717

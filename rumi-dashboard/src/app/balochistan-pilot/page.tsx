@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import AdoptionPanel from '@/components/balochistan-pilot/AdoptionPanel'
 import EngagementPanel from '@/components/balochistan-pilot/EngagementPanel'
 import RetentionPanel from '@/components/balochistan-pilot/RetentionPanel'
@@ -8,6 +8,7 @@ import ReliabilityPanel from '@/components/balochistan-pilot/ReliabilityPanel'
 import TeacherTable from '@/components/balochistan-pilot/TeacherTable'
 import SchoolCohortTable from '@/components/balochistan-pilot/SchoolCohortTable'
 import NpsPanel from '@/components/balochistan-pilot/NpsPanel'
+import PilotFilterBar from '@/components/balochistan-pilot/PilotFilterBar'
 import { PILOT_START } from '@/lib/balochistan-pilot-constants'
 
 export const dynamic = 'force-dynamic'
@@ -48,13 +49,17 @@ export default function BalochistanPilotPage() {
         </div>
       </div>
 
-      {tab === 'adoption' && <AdoptionPanel />}
-      {tab === 'engagement' && <EngagementPanel />}
-      {tab === 'retention' && <RetentionPanel />}
-      {tab === 'reliability' && <ReliabilityPanel />}
-      {tab === 'teachers' && <TeacherTable />}
-      {tab === 'schools' && <SchoolCohortTable />}
-      {tab === 'nps' && <NpsPanel />}
+      <Suspense fallback={null}>
+        <PilotFilterBar />
+
+        {tab === 'adoption' && <AdoptionPanel />}
+        {tab === 'engagement' && <EngagementPanel />}
+        {tab === 'retention' && <RetentionPanel />}
+        {tab === 'reliability' && <ReliabilityPanel />}
+        {tab === 'teachers' && <TeacherTable />}
+        {tab === 'schools' && <SchoolCohortTable />}
+        {tab === 'nps' && <NpsPanel />}
+      </Suspense>
     </main>
   )
 }

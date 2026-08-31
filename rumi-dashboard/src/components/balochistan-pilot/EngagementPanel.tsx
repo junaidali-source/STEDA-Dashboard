@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } from 'recharts'
+import { filterQueryString } from '@/lib/balochistan-pilot-filter-query'
 
 interface EngagementWeek {
   week: string
@@ -25,15 +27,17 @@ function Panel({ title, sub, children }: { title: string; sub?: string; children
 }
 
 export default function EngagementPanel() {
+  const sp = useSearchParams()
   const [data, setData] = useState<EngagementData | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/balochistan-pilot/engagement')
+    setData(null)
+    fetch(`/api/balochistan-pilot/engagement${filterQueryString(sp)}`)
       .then(async r => { if (!r.ok) throw new Error((await r.json()).error || `${r.status}`); return r.json() })
       .then(setData)
       .catch(e => setError(e.message))
-  }, [])
+  }, [sp])
 
   if (error) return <div className="bg-red-950 border border-red-900 rounded-xl p-5 text-red-400 text-sm">Error loading engagement data: {error}</div>
   if (!data) return <div className="text-gray-500 text-sm">Loading…</div>

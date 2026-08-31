@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { filterQueryString } from '@/lib/balochistan-pilot-filter-query'
 
 interface TeacherRow {
   name: string
@@ -26,15 +28,17 @@ function formatDate(iso: string | null): string {
 }
 
 export default function TeacherTable() {
+  const sp = useSearchParams()
   const [teachers, setTeachers] = useState<TeacherRow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/balochistan-pilot/teachers')
+    setTeachers(null)
+    fetch(`/api/balochistan-pilot/teachers${filterQueryString(sp)}`)
       .then(async r => { if (!r.ok) throw new Error((await r.json()).error || `${r.status}`); return r.json() })
       .then(d => setTeachers(d.teachers))
       .catch(e => setError(e.message))
-  }, [])
+  }, [sp])
 
   if (error) return <div className="bg-red-950 border border-red-900 rounded-xl p-5 text-red-400 text-sm">Error loading teachers: {error}</div>
   if (!teachers) return <div className="text-gray-500 text-sm">Loading…</div>

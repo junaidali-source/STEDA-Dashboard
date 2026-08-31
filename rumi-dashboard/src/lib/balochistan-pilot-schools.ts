@@ -10,9 +10,11 @@ import path from 'path'
 // true "enrolled" denominator for activation rate — but it's only known for
 // the 8 Zhob schools; the 12 Quetta schools didn't include a headcount in
 // their nomination letter, so treat any enrolled-teacher total as a partial
-// (lower-bound) figure, not a complete one. `cohort` is blank — neither
-// letter specifies the WhatsApp cohort groupings of 40-50 teachers; that's
-// still a separate open input.
+// (lower-bound) figure, not a complete one. `cohort` is set to the
+// district+gender grouping ("Quetta Male", "Zhob Female", etc.) used as the
+// "Group" field in SED's 25 Aug 2026 roster pull — the closest thing to a
+// WhatsApp cohort grouping currently confirmed; a finer-grained cohort
+// (multiple 40-50 teacher groups per district/gender) is still open.
 export interface PilotSchool {
   schoolName: string
   emisCode: string
