@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { filterQueryString } from '@/lib/balochistan-pilot-filter-query'
+import TeacherDetailModal from './TeacherDetailModal'
 
 interface TeacherRow {
   name: string
@@ -31,6 +32,7 @@ export default function TeacherTable() {
   const sp = useSearchParams()
   const [teachers, setTeachers] = useState<TeacherRow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [selectedPhone, setSelectedPhone] = useState<string | null>(null)
 
   useEffect(() => {
     setTeachers(null)
@@ -68,7 +70,16 @@ export default function TeacherTable() {
             {teachers.map((t, i) => (
               <tr key={`${t.phoneNumber}-${i}`} className="border-b border-gray-800/60 last:border-0">
                 <td className="px-6 py-3 text-gray-200">
-                  {t.name}
+                  {t.phoneNumber ? (
+                    <button
+                      onClick={() => setSelectedPhone(t.phoneNumber)}
+                      className="text-left text-coral hover:text-white hover:underline underline-offset-2 transition-colors"
+                    >
+                      {t.name}
+                    </button>
+                  ) : (
+                    t.name
+                  )}
                   {t.hasPhoneConflict && (
                     <span title="Shares a phone number with another roster row — unresolved data conflict" className="ml-2 text-xs px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400">⚠ conflict</span>
                   )}
@@ -96,6 +107,10 @@ export default function TeacherTable() {
           </tbody>
         </table>
       </div>
+
+      {selectedPhone && (
+        <TeacherDetailModal phone={selectedPhone} onClose={() => setSelectedPhone(null)} />
+      )}
     </div>
   )
 }
