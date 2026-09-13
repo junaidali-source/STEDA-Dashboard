@@ -620,8 +620,8 @@ export async function getTeacherDetail(phone: string): Promise<TeacherDetail> {
       [user.id]
     ),
     pool.query(
-      `SELECT id, created_at, status, (${COACHING_PCT}) AS score_pct, analysis_data->>'framework' AS framework
-       FROM coaching_sessions WHERE user_id = $1 AND observation_type IS NULL ORDER BY created_at DESC LIMIT 100`,
+      `SELECT id, created_at, status, (${COACHING_PCT}) AS score_pct, cs.analysis_data->>'framework' AS framework
+       FROM coaching_sessions cs WHERE user_id = $1 AND observation_type IS NULL ORDER BY created_at DESC LIMIT 100`,
       [user.id]
     ),
     pool.query(
