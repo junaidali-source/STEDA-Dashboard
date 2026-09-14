@@ -14,8 +14,11 @@ const ROSTER_USER_FILTER = `COALESCE(u.is_test_user, false) = false AND u.phone_
 
 // Same as onboarding-tracker.ts's COACHING_PCT — the AI's existing pedagogical
 // rubric score, used as-is under the MOU's "PITE-aligned" label (no rubric
-// crosswalk exists yet).
-const COACHING_PCT = `COALESCE(cs.analysis_data->'scores'->>'percentage', cs.analysis_data->'scores'->>'overall_percentage')`
+// crosswalk exists yet). Three fallback keys because the score's home key
+// varies by coaching framework (verified live: this roster's sessions are
+// scored under the "oecd" framework, which populates `percentage` but leaves
+// `overall_percentage` null — never assume one key covers every session).
+const COACHING_PCT = `COALESCE(cs.analysis_data->'scores'->>'percentage', cs.analysis_data->'scores'->>'overall_percentage', cs.analysis_data->'scores'->>'percentage_with_debrief')`
 
 function scopedRoster(filters?: RosterFilters): RosterTeacher[] {
   const roster = getTeacherRoster()
@@ -538,4 +541,102 @@ export async function getNpsSummary(filters?: RosterFilters): Promise<NpsSummary
     if ((e as { code?: string })?.code === '42P01') return empty
     throw e
   }
+}
+
+export interface TeacherActivityItem {
+  id: string
+  createdAt: string
+  status: string
+}
+
+export interface CoachingSessionItem extends TeacherActivityItem {
+  scorePercentage: number | null
+  framework: string | null
+}
+
+export interface TeacherDetail {
+  found: boolean
+  name: string
+  phoneNumber: string
+  schoolName: string
+  cohort: string | null
+  district: string
+  gender: string
+  notes: string
+  hasPhoneConflict: boolean
+  registrationCompleted: boolean
+  registeredAt: string | null
+  lastActivityAt: string | null
+  lessonPlans: TeacherActivityItem[]
+  coachingSessions: CoachingSessionItem[]
+  readingAssessments: TeacherActivityItem[]
+}
+
+// Full activity history for one teacher, keyed by their roster phone number —
+// the drill-down behind clicking a name in the Teacher-Level View. Every list
+// is individual rows (not just a tally), newest first. `found: false` means
+// the phone isn't on the roster at all (bad link, not "no activity yet").
+export async function getTeacherDetail(phone: string): Promise<TeacherDetail> {
+  const fullRoster = getTeacherRoster()
+  const teacher = fullRoster.find(t => t.phone === phone)
+  const empty: TeacherDetail = {
+    found: false, name: '', phoneNumber: phone, schoolName: '', cohort: null, district: '', gender: '', notes: '',
+    hasPhoneConflict: false, registrationCompleted: false, registeredAt: null, lastActivityAt: null,
+    lessonPlans: [], coachingSessions: [], readingAssessments: [],
+  }
+  if (!teacher) return empty
+
+  const phoneCounts = new Map<string, number>()
+  for (const t of fullRoster) if (t.phone) phoneCounts.set(t.phone, (phoneCounts.get(t.phone) ?? 0) + 1)
+
+  const school = findPilotSchool(teacher.emisCode, teacher.schoolName)
+
+  const userRes = await pool.query(
+    `SELECT id, registration_completed, COALESCE(registration_completed_at, created_at) AS registered_at, last_activity_at
+     FROM users WHERE phone_number = $1 AND COALESCE(is_test_user, false) = false`,
+    [phone]
+  )
+  const user = userRes.rows[0] as { id: string; registration_completed: boolean; registered_at: string | null; last_activity_at: string | null } | undefined
+
+  const base: TeacherDetail = {
+    ...empty,
+    found: true,
+    name: teacher.name,
+    schoolName: teacher.schoolName,
+    cohort: school?.cohort || null,
+    district: teacher.district,
+    gender: teacher.gender,
+    notes: teacher.notes,
+    hasPhoneConflict: (phoneCounts.get(phone) ?? 0) > 1,
+    registrationCompleted: user?.registration_completed ?? false,
+    registeredAt: user?.registered_at ?? null,
+    lastActivityAt: user?.last_activity_at ?? null,
+  }
+  if (!user) return base
+
+  const [lpRes, coachRes, readingRes] = await Promise.all([
+    pool.query(
+      `SELECT id, created_at, status FROM lesson_plan_requests WHERE user_id = $1 ORDER BY created_at DESC LIMIT 100`,
+      [user.id]
+    ),
+    pool.query(
+      `SELECT id, created_at, status, (${COACHING_PCT}) AS score_pct, cs.analysis_data->>'framework' AS framework
+       FROM coaching_sessions cs WHERE user_id = $1 AND observation_type IS NULL ORDER BY created_at DESC LIMIT 100`,
+      [user.id]
+    ),
+    pool.query(
+      `SELECT id, created_at, status FROM reading_assessments WHERE user_id = $1 ORDER BY created_at DESC LIMIT 100`,
+      [user.id]
+    ),
+  ])
+
+  base.lessonPlans = lpRes.rows.map((r: { id: string; created_at: string; status: string }) => ({ id: r.id, createdAt: r.created_at, status: r.status }))
+  base.coachingSessions = coachRes.rows.map((r: { id: string; created_at: string; status: string; score_pct: string | null; framework: string | null }) => ({
+    id: r.id, createdAt: r.created_at, status: r.status,
+    scorePercentage: r.score_pct !== null ? Number(r.score_pct) : null,
+    framework: r.framework,
+  }))
+  base.readingAssessments = readingRes.rows.map((r: { id: string; created_at: string; status: string }) => ({ id: r.id, createdAt: r.created_at, status: r.status }))
+
+  return base
 }
