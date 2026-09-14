@@ -44,17 +44,24 @@ export async function GET() {
         engagementPct: 0,
         totalDistricts: 0,
         districtsOnboarded: 0,
+        totalRegistered: 0,
+        totalUnregistered: 0,
+        schoolsWithRegisteredTeachers: 0,
         districts: [] as unknown[],
         teachers: [] as unknown[],
       })
     }
 
     const joinedRes = await pool.query(
-      `SELECT id::uuid AS id, phone_number::text AS phone FROM users
+      `SELECT id::uuid AS id, phone_number::text AS phone, COALESCE(registration_completed, false) AS registration_completed FROM users
        WHERE phone_number = ANY($1::text[]) AND COALESCE(is_test_user, false) = false`,
       [phones]
     )
     const joinedPhones = new Set<string>(joinedRes.rows.map((r: { phone: string }) => r.phone))
+    const registeredPhones = new Set<string>(
+      joinedRes.rows.filter((r: { registration_completed: boolean }) => r.registration_completed)
+        .map((r: { phone: string }) => r.phone)
+    )
     const phoneToUserId = new Map<string, string>(
       joinedRes.rows.map((r: { id: string; phone: string }) => [r.phone, r.id])
     )
@@ -128,6 +135,24 @@ export async function GET() {
     const totalDistricts = districts.length
     const districtsOnboarded = districts.filter((d) => d.joined > 0).length
 
+    // Bifurcation of the "joined" figure: has a Rumi account (any signup) vs.
+    // has actually completed registration. "Joined" alone conflates the two —
+    // a mid-registration signup still counts as joined but isn't a working account.
+    const totalRegistered = teachers.filter((t) => registeredPhones.has(t.phone)).length
+    const totalUnregistered = totalJoined - totalRegistered
+
+    // Distinct schools represented by fully-registered teachers, keyed by
+    // SEMISID where available (falls back to the school name for the rare
+    // row with no SEMISID) so two schools with the same free-text name in
+    // different districts aren't merged into one.
+    const registeredSchoolKeys = new Set<string>()
+    for (const t of teachers) {
+      if (!registeredPhones.has(t.phone)) continue
+      const key = t.semisId ? `semis:${t.semisId}` : `name:${t.district}|${t.school}`
+      registeredSchoolKeys.add(key)
+    }
+    const schoolsWithRegisteredTeachers = registeredSchoolKeys.size
+
     const teacherRows = teachers.map((t) => ({
       phone: t.phone,
       name: t.name || '—',
@@ -152,6 +177,9 @@ export async function GET() {
       engagementPct,
       totalDistricts,
       districtsOnboarded,
+      totalRegistered,
+      totalUnregistered,
+      schoolsWithRegisteredTeachers,
       districts,
       teachers: teacherRows,
     }

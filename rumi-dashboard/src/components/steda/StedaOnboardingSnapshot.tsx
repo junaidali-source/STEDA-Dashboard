@@ -31,6 +31,9 @@ interface Payload {
   engagementPct: number
   totalDistricts: number
   districtsOnboarded: number
+  totalRegistered: number
+  totalUnregistered: number
+  schoolsWithRegisteredTeachers: number
   districts: DistrictMapRow[]
   teachers: TeacherRow[]
 }
@@ -128,6 +131,28 @@ export default function StedaOnboardingSnapshot() {
           <p className="text-3xl font-bold text-indigo-100 tabular-nums leading-none">{data.engagementPct}%</p>
           <p className="text-xs text-indigo-100/95 mt-2 leading-snug">
             {data.totalEngaged.toLocaleString()} onboarded with ≥1 feature
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="rounded-xl border border-emerald-700/70 bg-emerald-950/60 p-4 min-h-[100px] flex flex-col justify-between">
+          <p className="text-[11px] font-semibold tracking-wide text-emerald-200 uppercase" title="Has a Rumi account AND completed registration">
+            Registered on Rumi
+          </p>
+          <p className="text-3xl font-bold text-emerald-100 tabular-nums leading-none">{data.totalRegistered.toLocaleString()}</p>
+        </div>
+        <div className="rounded-xl border border-slate-700 bg-slate-900 p-4 min-h-[100px] flex flex-col justify-between">
+          <p className="text-[11px] font-semibold tracking-wide text-slate-300 uppercase" title="Has a Rumi account but never finished registration">
+            Unregistered (signup incomplete)
+          </p>
+          <p className="text-3xl font-bold text-white tabular-nums leading-none">{data.totalUnregistered.toLocaleString()}</p>
+        </div>
+        <div className="rounded-xl border border-teal-700/70 bg-teal-950/55 p-4 min-h-[100px] col-span-2 lg:col-span-1 flex flex-col justify-between">
+          <p className="text-[11px] font-semibold tracking-wide text-teal-200 uppercase">Schools with a registered teacher</p>
+          <p className="text-3xl font-bold text-teal-100 tabular-nums leading-none">{data.schoolsWithRegisteredTeachers.toLocaleString()}</p>
+          <p className="text-[11px] text-teal-100/70 mt-1 leading-snug">
+            Student enrollment per school isn&apos;t available in this data source yet — no governed count exists to show it accurately.
           </p>
         </div>
       </div>
