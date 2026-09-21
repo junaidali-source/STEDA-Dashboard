@@ -128,6 +128,15 @@ export function getScopedRoster(scope: OnboardingScope): OnboardingTeacher[] {
   return rows
 }
 
+// Only rows whose Role column is literally "Teacher" count toward teacher
+// adoption/coaching stats. Everyone else (headmistress, head teacher, etc.)
+// is school leadership doing human-in-the-loop coaching observation, not
+// self-coaching — mixing them into "Top Teachers" or coaching-completion
+// stats would misrepresent both groups.
+export function isTeacherRole(role: string): boolean {
+  return role.trim().toLowerCase() === 'teacher'
+}
+
 export type LiveStatus = 'active' | 'joined' | 'pending'
 
 interface LiveStatusInfo {
@@ -355,6 +364,58 @@ export async function getCoachingDetails(phones: string[]): Promise<Record<strin
       avgScore: row.avg_score !== null ? Number(row.avg_score) : null,
       improvement: first !== null && latest !== null ? Math.round((latest - first) * 10) / 10 : null,
       lastSessionDate: row.last_date,
+    }
+  }
+
+  return map
+}
+
+export interface HitlObservation {
+  hasAccount: boolean
+  observationsCompleted: number
+  lastObservationDate: string | null
+  lastStatus: string | null
+}
+
+// School leadership (Focal Point/Headmistress, Head Teacher, etc.) don't take
+// self-coaching sessions — they observe teachers in the classroom and log it
+// via Rumi's human-in-the-loop observation flow. `observation_type IS NOT
+// NULL` is what distinguishes an observation row from a teacher's own
+// self-recorded coaching session in the same `coaching_sessions` table.
+export async function getHitlObservations(phones: string[]): Promise<Record<string, HitlObservation>> {
+  const map: Record<string, HitlObservation> = {}
+  const uniquePhones = Array.from(new Set(phones.filter(Boolean)))
+  if (uniquePhones.length === 0) return map
+
+  const usersRes = await pool.query(
+    `SELECT id, phone_number FROM users
+     WHERE phone_number = ANY($1::text[]) AND COALESCE(is_test_user, false) = false`,
+    [uniquePhones]
+  )
+  const idToPhone = new Map<string, string>()
+  for (const row of usersRes.rows as { id: string; phone_number: string }[]) {
+    idToPhone.set(row.id, row.phone_number)
+    map[row.phone_number] = { hasAccount: true, observationsCompleted: 0, lastObservationDate: null, lastStatus: null }
+  }
+  const ids = Array.from(idToPhone.keys())
+  if (ids.length === 0) return map
+
+  const res = await pool.query(
+    `SELECT DISTINCT ON (cs.user_id) cs.user_id, cs.created_at, cs.status,
+       COUNT(*) OVER (PARTITION BY cs.user_id) AS total
+     FROM coaching_sessions cs
+     WHERE cs.user_id = ANY($1::uuid[]) AND cs.observation_type IS NOT NULL
+     ORDER BY cs.user_id, cs.created_at DESC`,
+    [ids]
+  )
+  for (const row of res.rows as { user_id: string; created_at: string; status: string; total: string }[]) {
+    const phone = idToPhone.get(row.user_id)
+    if (!phone) continue
+    map[phone] = {
+      hasAccount: true,
+      observationsCompleted: Number(row.total),
+      lastObservationDate: row.created_at,
+      lastStatus: row.status,
     }
   }
 

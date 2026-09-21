@@ -5,8 +5,9 @@ import { Suspense } from 'react'
 import { verifySessionToken } from '@/lib/auth'
 import {
   getScopedRoster, getLiveJoinStatus, getCoachingDetails, getCoachingIndicators, buildLeaderboard,
-  resolveLiveStatus, resolveUsage, summarizeLive,
+  resolveLiveStatus, resolveUsage, summarizeLive, isTeacherRole, getHitlObservations,
   type OnboardingScope, type LiveStatus, type FeatureStat, type CoachingIndicators, type DomainScore,
+  type OnboardingTeacher, type HitlObservation,
 } from '@/lib/onboarding-tracker'
 import { featureColor } from '@/lib/feature-colors'
 import StedaDashboard from '@/components/steda/StedaDashboard'
@@ -126,6 +127,8 @@ export default async function OnboardingTrackerPage({
     null
 
   const rows = getScopedRoster(scope)
+  const teacherRows = rows.filter(r => isTeacherRole(r.role))
+  const hitlRows = rows.filter(r => !isTeacherRole(r.role))
   let liveStatus: Awaited<ReturnType<typeof getLiveJoinStatus>> = {}
   let liveStatusError = false
   try {
@@ -134,7 +137,7 @@ export default async function OnboardingTrackerPage({
     console.error('onboarding-tracker: live status lookup failed', e)
     liveStatusError = true
   }
-  const stats = summarizeLive(rows, liveStatus, liveStatusError)
+  const stats = summarizeLive(teacherRows, liveStatus, liveStatusError)
 
   const scopeLabel =
     scope?.type === 'school'   ? scope.value :
@@ -144,8 +147,8 @@ export default async function OnboardingTrackerPage({
   let leaderboard: ReturnType<typeof buildLeaderboard> = []
   if (session.role === 'principal' && !liveStatusError) {
     try {
-      const indicators = await getCoachingIndicators(rows.map(r => r.whatsappIntl))
-      leaderboard = buildLeaderboard(rows, indicators)
+      const indicators = await getCoachingIndicators(teacherRows.map(r => r.whatsappIntl))
+      leaderboard = buildLeaderboard(teacherRows, indicators)
     } catch (e) {
       console.error('onboarding-tracker: leaderboard lookup failed', e)
     }
@@ -200,11 +203,17 @@ export default async function OnboardingTrackerPage({
               </div>
 
               <CoachingLeaderboard entries={leaderboard} />
+
+              {hitlRows.length > 0 && (
+                <Suspense>
+                  <HitlObserversSection rows={hitlRows} />
+                </Suspense>
+              )}
             </>
           )}
 
           {tab === 'coaching' && (
-            <CoachingDetailSection rows={rows} liveStatusError={liveStatusError} />
+            <CoachingDetailSection rows={teacherRows} liveStatusError={liveStatusError} />
           )}
         </>
       ) : (
@@ -282,7 +291,7 @@ export default async function OnboardingTrackerPage({
           )}
 
           {tab === 'coaching' && (
-            <CoachingDetailSection rows={rows} liveStatusError={liveStatusError} />
+            <CoachingDetailSection rows={teacherRows} liveStatusError={liveStatusError} />
           )}
         </>
       )}
@@ -318,6 +327,57 @@ function CoachingLeaderboard({ entries }: { entries: ReturnType<typeof buildLead
               <span className="text-white font-bold text-sm w-14 text-right">{e.overallPct}%</span>
             </li>
           ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+async function HitlObserversSection({ rows }: { rows: OnboardingTeacher[] }) {
+  let observations: Record<string, HitlObservation> = {}
+  let error = false
+  try {
+    observations = await getHitlObservations(rows.map(r => r.whatsappIntl))
+  } catch (e) {
+    console.error('onboarding-tracker: HITL observation lookup failed', e)
+    error = true
+  }
+
+  return (
+    <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-800">
+        <h2 className="text-white font-semibold text-sm">HITL Observers</h2>
+        <p className="text-xs text-gray-500 mt-0.5">
+          School leadership conducting human-in-the-loop classroom observations — not counted in teacher coaching stats above
+        </p>
+      </div>
+      {error ? (
+        <div className="px-6 py-6 text-sm text-amber-400">Couldn&apos;t reach the live observation database right now.</div>
+      ) : (
+        <ul className="divide-y divide-gray-800">
+          {rows.map(r => {
+            const obs = observations[r.whatsappIntl]
+            return (
+              <li key={r.sno} className="flex items-center gap-4 px-6 py-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-gray-200 text-sm truncate">{r.name}</p>
+                  <p className="text-xs text-gray-500">{r.role}</p>
+                </div>
+                {!obs?.hasAccount ? (
+                  <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-amber-500/15 text-amber-400">No Rumi account</span>
+                ) : obs.observationsCompleted > 0 ? (
+                  <>
+                    <span className="text-xs text-gray-500 hidden sm:inline">{formatDate(obs.lastObservationDate)}</span>
+                    <span className="text-white font-bold text-sm w-28 text-right">
+                      {obs.observationsCompleted} observation{obs.observationsCompleted === 1 ? '' : 's'}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-sky-500/15 text-sky-400">No observations yet</span>
+                )}
+              </li>
+            )
+          })}
         </ul>
       )}
     </div>
