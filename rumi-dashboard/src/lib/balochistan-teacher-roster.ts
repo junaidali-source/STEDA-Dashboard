@@ -1,10 +1,19 @@
 import fs from 'fs'
 import path from 'path'
 
-// The real, DEO-confirmed teacher roster for the 20 Balochistan SED pilot
-// schools — 169 named teachers with phone numbers, cross-verified against
-// live Rumi data in Aug 2026. This supersedes the self-reported
-// region+date-cutoff approximation as the source of truth for "enrolled."
+// The teacher roster for the Balochistan SED pilot — synced from the live,
+// continuously-maintained Google Sheet ("Balochistan Pilot -- Individual
+// Teacher Progress", https://docs.google.com/spreadsheets/d/1lFXAWTxHpoiE4FcbxDktedKb9mxvDmpL3HEnZcEyNNk)
+// which is the single source of truth for WHO is currently enrolled (it
+// already excludes anyone marked do-not-contact/removed/transferred, so
+// joiners and leavers are reflected here automatically on each sync).
+// EMIS code and gender are NOT in the sheet — they're enriched here from
+// the schools reference file / the prior roster snapshot by phone number,
+// and left blank (with a note) when neither source has them, e.g. for a
+// newly-added teacher whose school hasn't been EMIS-matched yet.
+// Activity (lesson plans, coaching, registration, etc.) is NOT read from
+// this file — it still comes live from RUMI_DB per phone number, exactly
+// as before; this file only ever supplies identity/roster membership.
 export interface RosterTeacher {
   name: string
   phone: string | null
